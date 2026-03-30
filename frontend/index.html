@@ -247,20 +247,278 @@ function drawFloorplan() {
   slidingDoorV(545, 136, 62);             // 餐厅↔游戏室
   slidingDoorV(545, 298, 70);             // 客厅↔次阳台
 
-  // Minimal furniture hints (faint)
-  ctx.strokeStyle = 'rgba(180,150,80,0.18)'; ctx.lineWidth = 1;
-  // Dining table circle
-  ctx.beginPath(); ctx.arc(367, 188, 38, 0, Math.PI * 2); ctx.stroke();
-  // Sofa L-shape in 客厅
-  ctx.strokeRect(210, 300, 100, 28);
-  ctx.strokeRect(200, 300, 28, 60);
-  // TV in 客厅
-  ctx.strokeRect(310, 390, 80, 12);
-  // Bed in 卧室
-  ctx.strokeRect(30, 450, 100, 80);
-  // Game chair in 游戏室
-  ctx.beginPath(); ctx.arc(620, 185, 22, 0, Math.PI * 2); ctx.stroke();
+  drawFurniture();
 }
+
+function drawFurniture() {
+  // ── 厨房 (x14-190, y100-262) ──────────────────────────────────────────────
+  // 灶台
+  ctx.fillStyle = '#3a3020'; ctx.fillRect(20, 106, 80, 28);
+  ctx.strokeStyle = '#7a6030'; ctx.lineWidth = 1;
+  ctx.strokeRect(20, 106, 80, 28);
+  // 灶眼 x2
+  ctx.strokeStyle = '#c08040';
+  ctx.beginPath(); ctx.arc(38, 120, 7, 0, Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(62, 120, 7, 0, Math.PI*2); ctx.stroke();
+  // 冰箱
+  ctx.fillStyle = '#2a3838'; ctx.fillRect(148, 106, 32, 50);
+  ctx.strokeStyle = '#4a7060'; ctx.lineWidth = 1; ctx.strokeRect(148, 106, 32, 50);
+  ctx.strokeStyle = '#3a5848'; ctx.lineWidth = 0.5; line(148, 131, 180, 131);
+  // 岛台
+  ctx.fillStyle = '#2e2818'; ctx.fillRect(30, 200, 120, 30);
+  ctx.strokeStyle = '#7a6030'; ctx.lineWidth = 1; ctx.strokeRect(30, 200, 120, 30);
+
+  // ── 餐厅 (x190-545, y100-262) ─────────────────────────────────────────────
+  // 圆桌
+  ctx.fillStyle = '#3a2c10';
+  ctx.beginPath(); ctx.arc(367, 188, 42, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#c49840'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(367, 188, 42, 0, Math.PI*2); ctx.stroke();
+  // 4把椅子
+  ctx.fillStyle = '#2a2010';
+  for (const [cx, cy] of [[367,138],[417,188],[367,238],[317,188]]) {
+    ctx.beginPath(); ctx.arc(cx, cy, 10, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#8a6830'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(cx, cy, 10, 0, Math.PI*2); ctx.stroke();
+  }
+  // 酒柜 (右侧)
+  ctx.fillStyle = '#2e1a08'; ctx.fillRect(500, 108, 36, 70);
+  ctx.strokeStyle = '#7a4820'; ctx.lineWidth = 1; ctx.strokeRect(500, 108, 36, 70);
+  ctx.strokeStyle = '#5a3010'; ctx.lineWidth = 0.5;
+  line(500, 143, 536, 143); line(518, 108, 518, 178);
+  // 火锅底座
+  ctx.strokeStyle = '#c04020'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(367, 188, 20, 0, Math.PI*2); ctx.stroke();
+
+  // ── 游戏室 (x545-726, y100-262) ───────────────────────────────────────────
+  // 电竞桌
+  ctx.fillStyle = '#1e1828'; ctx.fillRect(555, 108, 140, 32);
+  ctx.strokeStyle = '#5040a0'; ctx.lineWidth = 1; ctx.strokeRect(555, 108, 140, 32);
+  // 显示器 x2
+  ctx.fillStyle = '#0a0a18';
+  ctx.fillRect(562, 110, 44, 24); ctx.fillRect(614, 110, 44, 24);
+  ctx.strokeStyle = '#6050c0'; ctx.lineWidth = 0.8;
+  ctx.strokeRect(562, 110, 44, 24); ctx.strokeRect(614, 110, 44, 24);
+  // 电竞椅
+  ctx.fillStyle = '#2a1818'; ctx.fillRect(608, 150, 36, 40);
+  ctx.strokeStyle = '#a03030'; ctx.lineWidth = 1; ctx.strokeRect(608, 150, 36, 40);
+  // Switch放桌上
+  ctx.fillStyle = '#303040'; ctx.fillRect(570, 148, 28, 16);
+  ctx.strokeStyle = '#4040a0'; ctx.lineWidth = 0.8; ctx.strokeRect(570, 148, 28, 16);
+
+  // ── 衣帽间 (x14-190, y262-424) ────────────────────────────────────────────
+  // 衣柜
+  ctx.fillStyle = '#281c10'; ctx.fillRect(20, 268, 60, 70);
+  ctx.strokeStyle = '#7a5020'; ctx.lineWidth = 1; ctx.strokeRect(20, 268, 60, 70);
+  line(50, 268, 50, 338);
+  // 鞋墙
+  ctx.fillStyle = '#1e1a14'; ctx.fillRect(20, 348, 150, 38);
+  ctx.strokeStyle = '#6a4818'; ctx.lineWidth = 1; ctx.strokeRect(20, 348, 150, 38);
+  // 鞋格子
+  for (let i = 0; i < 6; i++) {
+    ctx.strokeStyle = '#4a3010'; ctx.lineWidth = 0.5;
+    line(20 + i*25, 348, 20 + i*25, 386);
+  }
+  // 全身镜
+  ctx.fillStyle = '#1a2028'; ctx.fillRect(148, 268, 26, 72);
+  ctx.strokeStyle = '#c0a040'; ctx.lineWidth = 1.5; ctx.strokeRect(148, 268, 26, 72);
+  // 镜框角装饰
+  ctx.strokeStyle = '#e0c060'; ctx.lineWidth = 1;
+  ctx.strokeRect(150, 270, 22, 68);
+
+  // ── 客厅 (x190-545, y262-424) ─────────────────────────────────────────────
+  // L形沙发
+  ctx.fillStyle = '#2a2030';
+  ctx.fillRect(210, 290, 160, 40);   // 主沙发
+  ctx.fillRect(200, 290, 40, 80);    // 侧沙发
+  ctx.strokeStyle = '#6050a0'; ctx.lineWidth = 1;
+  ctx.strokeRect(210, 290, 160, 40);
+  ctx.strokeRect(200, 290, 40, 80);
+  // 懒人沙发
+  ctx.fillStyle = '#281820';
+  ctx.beginPath(); ctx.arc(430, 320, 22, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#8040a0'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(430, 320, 22, 0, Math.PI*2); ctx.stroke();
+  // 茶几
+  ctx.fillStyle = '#1e1810'; ctx.fillRect(255, 340, 80, 40);
+  ctx.strokeStyle = '#6a5020'; ctx.lineWidth = 1; ctx.strokeRect(255, 340, 80, 40);
+  // 65寸TV + 柜
+  ctx.fillStyle = '#0a0a0a'; ctx.fillRect(310, 398, 120, 16);
+  ctx.strokeStyle = '#405060'; ctx.lineWidth = 1; ctx.strokeRect(310, 398, 120, 16);
+  ctx.fillStyle = '#181818'; ctx.fillRect(295, 414, 150, 8);
+  ctx.strokeStyle = '#304050'; ctx.lineWidth = 0.5; ctx.strokeRect(295, 414, 150, 8);
+  // PS5 (白色小方块在TV柜旁)
+  ctx.fillStyle = '#d8d8d8'; ctx.fillRect(440, 396, 18, 12);
+  ctx.strokeStyle = '#0060c0'; ctx.lineWidth = 0.8; ctx.strokeRect(440, 396, 18, 12);
+
+  // ── 次阳台 (x545-726, y262-424) ───────────────────────────────────────────
+  // 藤椅 x2
+  ctx.strokeStyle = '#6a7840'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(585, 310, 18, 0, Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(640, 310, 18, 0, Math.PI*2); ctx.stroke();
+  // 大盆栽
+  ctx.fillStyle = '#1a2810'; ctx.fillRect(670, 270, 36, 50);
+  ctx.strokeStyle = '#3a5820'; ctx.lineWidth = 1; ctx.strokeRect(670, 270, 36, 50);
+  // 植物叶子
+  ctx.strokeStyle = '#4a8030'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(688, 265, 20, Math.PI, Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(675, 260, 14, Math.PI+0.3, Math.PI*2-0.3); ctx.stroke();
+  ctx.beginPath(); ctx.arc(700, 258, 14, Math.PI+0.3, Math.PI*2-0.3); ctx.stroke();
+  // 灯笼（春节装饰）
+  ctx.fillStyle = '#8a1010';
+  ctx.beginPath(); ctx.arc(612, 278, 9, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(660, 278, 9, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#ffaa00'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(612, 278, 9, 0, Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(660, 278, 9, 0, Math.PI*2); ctx.stroke();
+
+  // ── 卧室 (x14-390, y424-586) ──────────────────────────────────────────────
+  // 特大号床
+  ctx.fillStyle = '#1e2030'; ctx.fillRect(25, 445, 120, 100);
+  ctx.strokeStyle = '#4050a0'; ctx.lineWidth = 1; ctx.strokeRect(25, 445, 120, 100);
+  // 床头
+  ctx.fillStyle = '#2a2840'; ctx.fillRect(25, 445, 120, 22);
+  ctx.strokeStyle = '#6070c0'; ctx.lineWidth = 1; ctx.strokeRect(25, 445, 120, 22);
+  // 床垫纹
+  ctx.strokeStyle = '#303050'; ctx.lineWidth = 0.5;
+  ctx.strokeRect(32, 470, 106, 70);
+  // 智能面板
+  ctx.fillStyle = '#101820'; ctx.fillRect(155, 450, 28, 18);
+  ctx.strokeStyle = '#2060a0'; ctx.lineWidth = 1; ctx.strokeRect(155, 450, 28, 18);
+
+  // ── 卫生间 (x390-726, y424-586) ───────────────────────────────────────────
+  // 浴缸
+  ctx.fillStyle = '#1a2830'; ctx.fillRect(400, 438, 80, 50);
+  ctx.strokeStyle = '#3070a0'; ctx.lineWidth = 1.5; ctx.strokeRect(400, 438, 80, 50);
+  ctx.strokeStyle = '#2050808'; ctx.lineWidth = 0.5; ctx.strokeRect(406, 444, 68, 38);
+  // 独立淋浴
+  ctx.fillStyle = '#1e2a28'; ctx.fillRect(500, 432, 50, 60);
+  ctx.strokeStyle = '#408060'; ctx.lineWidth = 1; ctx.strokeRect(500, 432, 50, 60);
+  // 莲蓬头
+  ctx.strokeStyle = '#60a080'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(525, 444, 8, 0, Math.PI*2); ctx.stroke();
+  // 马桶
+  ctx.fillStyle = '#2a2820'; ctx.fillRect(618, 455, 36, 46);
+  ctx.strokeStyle = '#706050'; ctx.lineWidth = 1; ctx.strokeRect(618, 455, 36, 46);
+  ctx.fillStyle = '#222018'; ctx.fillRect(614, 452, 44, 14);
+  ctx.strokeStyle = '#605040'; ctx.lineWidth = 0.8; ctx.strokeRect(614, 452, 44, 14);
+}
+
+// ─── Character avatar drawers ─────────────────────────────────────────────────
+// Each draws a ~30×36px chibi portrait centered at (0,0), call with ctx translated
+
+function drawXiaohei(x, y) {
+  ctx.save(); ctx.translate(x, y);
+  // Body
+  ctx.fillStyle = '#2a4a7a'; ctx.beginPath(); ctx.arc(0, 4, 11, 0, Math.PI*2); ctx.fill();
+  // Head
+  ctx.fillStyle = '#1a1a2e'; ctx.beginPath(); ctx.arc(0, -8, 10, 0, Math.PI*2); ctx.fill();
+  // Cat ears
+  ctx.fillStyle = '#1a1a2e';
+  ctx.beginPath(); ctx.moveTo(-9,-15); ctx.lineTo(-5,-8); ctx.lineTo(-2,-13); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(9,-15); ctx.lineTo(5,-8); ctx.lineTo(2,-13); ctx.closePath(); ctx.fill();
+  // Inner ear
+  ctx.fillStyle = '#4a3050';
+  ctx.beginPath(); ctx.moveTo(-8,-14); ctx.lineTo(-5,-9); ctx.lineTo(-3,-13); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(8,-14); ctx.lineTo(5,-9); ctx.lineTo(3,-13); ctx.closePath(); ctx.fill();
+  // Eyes (blue)
+  ctx.fillStyle = '#4a90d9';
+  ctx.beginPath(); ctx.arc(-3.5,-8,2.5,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(3.5,-8,2.5,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.arc(-3.5,-8,1.2,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(3.5,-8,1.2,0,Math.PI*2); ctx.fill();
+  // Tiny nose
+  ctx.fillStyle = '#d08060';
+  ctx.beginPath(); ctx.arc(0,-5.5,1,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function drawWuxian(x, y) {
+  ctx.save(); ctx.translate(x, y);
+  // Body (purple robe)
+  ctx.fillStyle = '#6a3a8a'; ctx.beginPath(); ctx.arc(0, 4, 11, 0, Math.PI*2); ctx.fill();
+  // Head
+  ctx.fillStyle = '#f0d8c0'; ctx.beginPath(); ctx.arc(0, -8, 10, 0, Math.PI*2); ctx.fill();
+  // Hair (silver/white)
+  ctx.fillStyle = '#c8d8e8';
+  ctx.beginPath(); ctx.arc(0,-14,8,Math.PI,0); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-10,-12); ctx.lineTo(-12,-2); ctx.lineTo(-8,-8); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(10,-12); ctx.lineTo(12,-2); ctx.lineTo(8,-8); ctx.closePath(); ctx.fill();
+  // Elf ears
+  ctx.fillStyle = '#f0d8c0';
+  ctx.beginPath(); ctx.moveTo(-10,-7); ctx.lineTo(-15,-4); ctx.lineTo(-9,-3); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(10,-7); ctx.lineTo(15,-4); ctx.lineTo(9,-3); ctx.closePath(); ctx.fill();
+  // Eyes (gentle violet)
+  ctx.fillStyle = '#9b59b6';
+  ctx.beginPath(); ctx.arc(-3,-8,2.2,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(3,-8,2.2,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#1a0a28';
+  ctx.beginPath(); ctx.arc(-3,-8,1,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(3,-8,1,0,Math.PI*2); ctx.fill();
+  // Small smile
+  ctx.strokeStyle = '#c09080'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(0,-4,3,0.2,Math.PI-0.2); ctx.stroke();
+  ctx.restore();
+}
+
+function drawNezha(x, y) {
+  ctx.save(); ctx.translate(x, y);
+  // Body (red)
+  ctx.fillStyle = '#c0281a'; ctx.beginPath(); ctx.arc(0, 4, 11, 0, Math.PI*2); ctx.fill();
+  // Head
+  ctx.fillStyle = '#f5e0c0'; ctx.beginPath(); ctx.arc(0, -8, 10, 0, Math.PI*2); ctx.fill();
+  // Hair (black bun x2 — 双丫髻)
+  ctx.fillStyle = '#1a1010';
+  ctx.beginPath(); ctx.arc(-6,-17,5,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(6,-17,5,0,Math.PI*2); ctx.fill();
+  // Hair base
+  ctx.beginPath(); ctx.arc(0,-13,8,Math.PI,0); ctx.fill();
+  // Eyes (sharp/playful)
+  ctx.fillStyle = '#1a0800';
+  ctx.beginPath(); ctx.arc(-3.5,-8,2.5,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(3.5,-8,2.5,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#ff6040';
+  ctx.beginPath(); ctx.arc(-3.5,-8,1,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(3.5,-8,1,0,Math.PI*2); ctx.fill();
+  // Smirk
+  ctx.strokeStyle = '#c08060'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(-3,-4); ctx.quadraticCurveTo(1,-2,4,-5); ctx.stroke();
+  // Gold forehead jewel
+  ctx.fillStyle = '#f0c000';
+  ctx.beginPath(); ctx.arc(0,-13,2.5,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function drawLuye(x, y) {
+  ctx.save(); ctx.translate(x, y);
+  // Body (green)
+  ctx.fillStyle = '#1a6830'; ctx.beginPath(); ctx.arc(0, 4, 11, 0, Math.PI*2); ctx.fill();
+  // Head
+  ctx.fillStyle = '#e8d8b0'; ctx.beginPath(); ctx.arc(0, -8, 10, 0, Math.PI*2); ctx.fill();
+  // Hair (dark brown)
+  ctx.fillStyle = '#2a1808';
+  ctx.beginPath(); ctx.arc(0,-14,8,Math.PI,0); ctx.fill();
+  // Deer antlers
+  ctx.strokeStyle = '#8a5020'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(-4,-16); ctx.lineTo(-7,-24); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-7,-24); ctx.lineTo(-10,-20); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-7,-24); ctx.lineTo(-5,-19); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(4,-16); ctx.lineTo(7,-24); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(7,-24); ctx.lineTo(10,-20); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(7,-24); ctx.lineTo(5,-19); ctx.stroke();
+  ctx.lineCap = 'butt';
+  // Eyes (calm, amber)
+  ctx.fillStyle = '#8a6020';
+  ctx.beginPath(); ctx.arc(-3.5,-8,2.2,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(3.5,-8,2.2,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#1a0800';
+  ctx.beginPath(); ctx.arc(-3.5,-8,1,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(3.5,-8,1,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+const AVATAR_DRAWERS = { '小黑': drawXiaohei, '无限': drawWuxian, '哪吒': drawNezha, '鹿野': drawLuye };
 
 // ─── Sprites ──────────────────────────────────────────────────────────────────
 function drawSprites() {
@@ -272,40 +530,36 @@ function drawSprites() {
 
     const color = CHAR_COLORS[name];
 
-    // Glow shadow
+    // Glow
     ctx.shadowColor = color;
-    ctx.shadowBlur = 8;
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
 
-    // Circle body
-    ctx.beginPath();
-    ctx.arc(s.x, s.y, SPRITE_R, 0, Math.PI * 2);
-    ctx.fillStyle = color;
-    ctx.fill();
+    // Draw avatar
+    const drawer = AVATAR_DRAWERS[name];
+    if (drawer) drawer(s.x, s.y);
 
     ctx.shadowBlur = 0;
 
-    // White border
-    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(s.x, s.y, SPRITE_R, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // Name
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 10px PingFang SC, sans-serif';
+    // Name tag below
+    ctx.fillStyle = 'rgba(10,6,2,0.75)';
+    ctx.font = '9px PingFang SC, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(name, s.x, s.y + 3.5);
+    const nw = ctx.measureText(name).width + 8;
+    roundRect(s.x - nw/2, s.y + 16, nw, 13, 3);
+    ctx.fill();
+    ctx.fillStyle = color;
+    ctx.fillText(name, s.x, s.y + 26);
 
     // Mood tag
     if (s.mood) {
-      ctx.fillStyle = 'rgba(20,14,4,0.7)';
+      ctx.fillStyle = 'rgba(10,6,2,0.75)';
       ctx.font = '9px PingFang SC, sans-serif';
       const mw = ctx.measureText(s.mood).width + 6;
-      roundRect(s.x - mw / 2, s.y + SPRITE_R + 2, mw, 13, 3);
+      roundRect(s.x - mw/2, s.y + 30, mw, 12, 3);
       ctx.fill();
       ctx.fillStyle = color;
-      ctx.fillText(s.mood, s.x, s.y + SPRITE_R + 12);
+      ctx.fillText(s.mood, s.x, s.y + 40);
     }
   }
 }
@@ -344,7 +598,7 @@ function drawBubbles() {
 
     // Clamp bubble position to canvas
     let bx = b.sx - bw / 2;
-    let by = b.sy - SPRITE_R - bh - 10;
+    let by = b.sy - 22 - bh - 6;  // 22px = top of avatar head above center
     bx = Math.max(4, Math.min(CANVAS_W - bw - 4, bx));
     by = Math.max(4, by);
 

@@ -54,6 +54,7 @@ class Agent:
 
         others_here = [n for n in room_occupants.get(self.current_room, []) if n != self.name]
         others_str = "、".join(others_here) if others_here else "没有其他人"
+        alone = len(others_here) == 0
 
         # Build occupancy overview
         location_lines = []
@@ -98,7 +99,7 @@ class Agent:
   "思考": "你内心的想法（1-2句）",
   "目标房间": "你想去或留在的房间名（必须是：院子/厨房/餐厅/游戏室/衣帽间/客厅/次阳台/卧室/卫生间 之一）",
   "动作": "你正在做的具体动作（1句）",
-  "对话": "你说的话，如果不想说话就填空字符串",
+  "对话": "{'你现在独处，对话必须是空字符串' if alone else '你可以说一句话，但不是每次都要开口，大约30%的时候保持沉默更自然。不开口时填空字符串'}",
   "情绪": "当前情绪（1-3个字）"
 }}
 只回复JSON，不要任何其他内容。"""

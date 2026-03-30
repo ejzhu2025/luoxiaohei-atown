@@ -119,24 +119,31 @@ class TickScheduler:
 
             # Apply decisions and collect events
             tick_events = []
+            spoke_in_room: set[str] = set()  # rooms where someone already spoke this tick
             for agent, decision in zip(self.agents, decisions):
                 if isinstance(decision, Exception):
                     logger.error(f"{agent.name} think() failed: {decision}")
                     continue
                 path = self.world.apply_decision(agent.name, decision)
+                new_room = self.world.agent_rooms[agent.name]
+                # Only one speaker per room per tick
+                dialogue = decision.get("对话", "")
+                if dialogue and new_room in spoke_in_room:
+                    dialogue = ""  # silence this one — someone already spoke here
+                elif dialogue:
+                    spoke_in_room.add(new_room)
                 tick_events.append({
                     "type": "agent_action",
                     "name": agent.name,
                     "color": agent.color,
-                    "room": self.world.agent_rooms[agent.name],
+                    "room": new_room,
                     "path": path,
                     "action": decision.get("动作", ""),
-                    "dialogue": decision.get("对话", ""),
+                    "dialogue": dialogue,
                     "mood": decision.get("情绪", ""),
                     "thought": decision.get("思考", ""),
                 })
                 # Push memories to all agents in same room
-                new_room = self.world.agent_rooms[agent.name]
                 if decision.get("动作"):
                     event_text = f"{agent.name}在{new_room}：{decision['动作']}"
                     for other in self.agents:
