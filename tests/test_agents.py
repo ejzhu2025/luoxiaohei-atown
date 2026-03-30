@@ -14,6 +14,7 @@ def test_agent_initial_state():
     assert agent.current_room == "餐厅"
     assert agent.mood == "期待"
     assert agent.memories == []
+    assert agent.plan == []
     assert agent.core_traits
     assert agent.speech_style
     assert agent.taboos
@@ -27,21 +28,39 @@ def test_add_memory_stores_entry():
     assert agent.memories[0].importance == 8
 
 
-def test_memory_capped_at_20():
+def test_memory_capped_at_40():
     agent = make_agent("小黑")
-    for i in range(25):
+    for i in range(45):
         agent.add_memory(f"事件{i}", importance=i % 10, sim_time="18:00")
-    assert len(agent.memories) == 20
+    assert len(agent.memories) == 40
 
 
 def test_memory_evicts_lowest_importance():
     agent = make_agent("小黑")
-    for i in range(20):
+    for i in range(40):
         agent.add_memory(f"事件{i}", importance=5, sim_time="18:00")
     agent.add_memory("重要事件", importance=9, sim_time="18:05")
-    assert len(agent.memories) == 20
+    assert len(agent.memories) == 40
     importances = [m.importance for m in agent.memories]
     assert 9 in importances
+
+
+def test_retrieve_memories_ranks_by_relevance():
+    agent = make_agent("小黑")
+    agent.add_memory("无限做好了红烧肉", importance=8, sim_time="18:30", tick_num=1)
+    agent.add_memory("哪吒在玩PS5游戏", importance=5, sim_time="18:10", tick_num=2)
+    agent.add_memory("鹿野在次阳台看夜景", importance=5, sim_time="18:05", tick_num=3)
+    retrieved = agent.retrieve_memories("无限 厨房 做菜", k=2, current_tick=5)
+    # "无限做好了红烧肉" should score higher (relevance + importance)
+    assert any("无限" in m.event for m in retrieved)
+
+
+def test_should_reflect_triggers_after_threshold():
+    agent = make_agent("小黑")
+    assert not agent.should_reflect()
+    for i in range(10):
+        agent.add_memory(f"事件{i}", importance=5, sim_time="18:00")
+    assert agent.should_reflect()
 
 
 def test_build_prompt_contains_key_fields():
@@ -50,12 +69,14 @@ def test_build_prompt_contains_key_fields():
         "sim_time": "18:15",
         "room_occupants": {"厨房": ["无限"], "客厅": ["哪吒"]},
         "world_summary": "年夜饭准备中，大家各自活动",
+        "object_states": {"厨房": {"灶台": "空闲"}},
     }
     prompt = agent.build_prompt(world_context)
     assert "无限" in prompt
     assert "厨房" in prompt
     assert "18:15" in prompt
     assert "哪吒" in prompt
+    assert "灶台" in prompt
 
 
 def test_parse_llm_response_valid():

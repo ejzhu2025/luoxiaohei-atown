@@ -79,7 +79,21 @@ def test_apply_decision_moves_one_room():
 
 def test_apply_decision_stay_in_room():
     world = make_world()
-    decision = {"目标房间": "厨房", "情绪": "专注", "对话": "好香", "动作": "搅拌锅"}
+    decision = {"目标房间": "厨房", "情绪": "专注", "对话": "好香", "动作": "搅拌锅", "道具交互": ""}
     path = world.apply_decision("无限", decision)
     assert world.agent_rooms["无限"] == "厨房"
     assert path == ["厨房"]
+
+
+def test_object_state_update():
+    world = make_world()
+    decision = {"目标房间": "厨房", "情绪": "专注", "对话": "", "动作": "开火炖红烧肉", "道具交互": "红烧肉:炖煮中"}
+    world.apply_decision("无限", decision)
+    assert world.object_states["厨房"]["红烧肉"] == "炖煮中"
+
+
+def test_world_context_includes_object_states():
+    world = make_world()
+    ctx = world.build_world_context("18:00")
+    assert "object_states" in ctx
+    assert "客厅" in ctx["object_states"]

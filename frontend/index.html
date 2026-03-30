@@ -740,6 +740,54 @@ function handle(ev) {
       }
       break;
 
+    case 'agent_reaction': {
+      const { name, dialogue, action, mood, in_reply_to } = ev;
+      const s = sprites[name];
+      if (!s) break;
+      if (mood) s.mood = mood;
+      if (dialogue && dialogue.trim()) {
+        bubbles.push({ name, text: dialogue, sx: s.x, sy: s.y, expiry: Date.now() + BUBBLE_DURATION });
+      }
+      const color = CHAR_COLORS[name] || '#aaa';
+      addLog(
+        `<span class="log-time">${simTimeEl.textContent}</span>` +
+        `<span class="log-name" style="color:${color}">${name}</span>` +
+        `<span style="color:#605040;font-size:10px"> 回应${in_reply_to}</span> ` +
+        (action ? `<span class="log-action">${action}</span>` : '') +
+        (dialogue ? ` <span class="log-dialogue">「${dialogue}」</span>` : '')
+      );
+      break;
+    }
+
+    case 'agent_plan': {
+      const { name, plan } = ev;
+      const color = CHAR_COLORS[name] || '#aaa';
+      if (plan && plan.length) {
+        addLog(
+          `<span class="log-name" style="color:${color}">${name}</span>` +
+          `<span style="color:#507050;font-size:10px"> 今晚计划：</span>` +
+          `<span class="log-thought">${plan.slice(0,3).join(' / ')}</span>`
+        );
+      }
+      break;
+    }
+
+    case 'agent_reflection': {
+      const { name, insights, sim_time } = ev;
+      const color = CHAR_COLORS[name] || '#aaa';
+      addLog(
+        `<span class="log-time">${sim_time}</span>` +
+        `<span class="log-name" style="color:${color}">${name}</span>` +
+        `<span style="color:#806080;font-size:10px"> [反思] </span>` +
+        `<span class="log-thought">${insights[0]}</span>`
+      );
+      break;
+    }
+
+    case 'planning_start':
+      addLog(`<span class="log-system">— 角色规划今晚行程中... —</span>`);
+      break;
+
     case 'simulation_end':
       statusEl.textContent = `模拟结束`;
       addLog(`<span class="log-system">—— 除夕夜结束 ${ev.sim_time} ——</span>`);
