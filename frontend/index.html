@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>罗小黑 AI Town · 年夜饭</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0d0b08;
+    color: #e2d4b0;
+    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+  #header {
+    padding: 8px 16px;
+    background: #1a1208;
+    border-bottom: 1px solid #3a2a10;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  #header h1 { font-size: 15px; color: #e2b04a; letter-spacing: 0.05em; }
+  #sim-time { font-size: 14px; color: #c8a060; font-variant-numeric: tabular-nums; font-weight: bold; }
+  #status { font-size: 11px; color: #806040; margin-left: auto; }
+  #main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+  }
+  #canvas-wrap {
+    flex-shrink: 0;
+    position: relative;
+    background: #181410;
+    overflow: hidden;
+  }
+  canvas { display: block; }
+  #log-panel {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 12px;
+    background: #100e08;
+    border-left: 1px solid #2a1e0a;
+    font-size: 12px;
+    line-height: 1.7;
+    min-width: 260px;
+  }
+  .log-entry {
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #1a1408;
+  }
+  .log-time { color: #604820; margin-right: 6px; font-size: 11px; }
+  .log-name { font-weight: bold; margin-right: 4px; }
+  .log-thought { color: #907850; font-style: italic; display: block; }
+  .log-action { color: #c0a868; }
+  .log-dialogue { color: #e8d090; }
+  .log-mood { color: #809058; font-size: 10px; margin-left: 4px; }
+  .log-system { color: #e2b04a; text-align: center; padding: 4px 0; }
+</style>
+</head>
+<body>
+<div id="header">
+  <h1>罗小黑 AI Town · 哪吒家除夕夜年夜饭</h1>
+  <div id="sim-time">18:00</div>
+  <div id="status">连接中...</div>
+</div>
+<div id="main">
+  <div id="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+  <div id="log-panel"></div>
+</div>
+
+<script>
+// ─── Room layout (mirroring floorplan-v5 SVG grid) ───────────────────────────
+// Grid: 740×600, outer walls x=14/726, y=14/586
+// Rows: y=100/262/424/586, Cols: x=14/190/545/726
+const ROOMS = {
+  '院子':   { x: 14,  y: 14,  w: 712, h: 86,  cx: 370, cy: 57,  fill: '#2a3828' },
+  '厨房':   { x: 14,  y: 100, w: 176, h: 162, cx: 102, cy: 181, fill: '#282e38' },
+  '餐厅':   { x: 190, y: 100, w: 355, h: 162, cx: 367, cy: 181, fill: '#2e2818' },
+  '游戏室': { x: 545, y: 100, w: 181, h: 162, cx: 635, cy: 181, fill: '#28243a' },
+  '衣帽间': { x: 14,  y: 262, w: 176, h: 162, cx: 102, cy: 343, fill: '#2e2820' },
+  '客厅':   { x: 190, y: 262, w: 355, h: 162, cx: 367, cy: 343, fill: '#2e2818' },
+  '次阳台': { x: 545, y: 262, w: 181, h: 162, cx: 635, cy: 343, fill: '#1e2e22' },
+  '卧室':   { x: 14,  y: 424, w: 376, h: 162, cx: 202, cy: 505, fill: '#20282e' },
+  '卫生间': { x: 390, y: 424, w: 336, h: 162, cx: 558, cy: 505, fill: '#1e2a28' },
+};
+
+const CHAR_COLORS = {
+  '小黑': '#4a90d9',
+  '无限': '#9b59b6',
+  '哪吒': '#e74c3c',
+  '鹿野': '#27ae60',
+};
+
+const NAMES = ['小黑', '无限', '哪吒', '鹿野'];
+const SPRITE_R = 15;
+const BUBBLE_DURATION = 4500;
+
+// ─── Sprite state ─────────────────────────────────────────────────────────────
+const sprites = {};
+const INITIAL_ROOMS = { '小黑': '餐厅', '无限': '厨房', '哪吒': '客厅', '鹿野': '次阳台' };
+
+function roomOffset(name) {
+  const idx = NAMES.indexOf(name);
+  const offs = [{ x: -20, y: -16 }, { x: 20, y: -16 }, { x: -20, y: 16 }, { x: 20, y: 16 }];
+  return offs[idx] || { x: 0, y: 0 };
+}
+
+for (const name of NAMES) {
+  const room = INITIAL_ROOMS[name];
+  const r = ROOMS[room];
+  const off = roomOffset(name);
+  sprites[name] = { x: r.cx + off.x, y: r.cy + off.y, tx: r.cx + off.x, ty: r.cy + off.y, room, mood: '' };
+}
+
+// ─── Speech bubbles ───────────────────────────────────────────────────────────
+const bubbles = []; // { name, text, bx, by, expiry }
+
+// ─── Canvas setup ─────────────────────────────────────────────────────────────
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+const CANVAS_W = 740;
+const CANVAS_H = 600;
+
+function resizeCanvas() {
+  const wrap = document.getElementById('canvas-wrap');
+  const avail = Math.min(window.innerHeight - 40, window.innerWidth - 260);
+  const scale = Math.min(1, avail / CANVAS_H);
+  canvas.width = CANVAS_W;
+  canvas.height = CANVAS_H;
+  canvas.style.width = (CANVAS_W * scale) + 'px';
+  canvas.style.height = (CANVAS_H * scale) + 'px';
+  wrap.style.width = (CANVAS_W * scale) + 'px';
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// ─── Drawing helpers ──────────────────────────────────────────────────────────
+function line(x1, y1, x2, y2) {
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+}
+
+function arc(cx, cy, r, a0, a1) {
+  ctx.beginPath(); ctx.arc(cx, cy, r, a0, a1); ctx.stroke();
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h); ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
+function slidingDoorH(x, y, w) {
+  // Horizontal Tang-style lattice
+  ctx.save();
+  ctx.strokeStyle = '#c49858'; ctx.lineWidth = 1;
+  for (let i = 0; i <= w; i += 7) line(x + i, y - 3, x + i, y + 3);
+  line(x, y, x + w, y);
+  ctx.restore();
+}
+
+function slidingDoorV(x, y, h) {
+  ctx.save();
+  ctx.strokeStyle = '#c49858'; ctx.lineWidth = 1;
+  for (let i = 0; i <= h; i += 7) line(x - 3, y + i, x + 3, y + i);
+  line(x, y, x, y + h);
+  ctx.restore();
+}
+
+// ─── Floor plan ───────────────────────────────────────────────────────────────
+function drawFloorplan() {
+  // Room fills
+  for (const [name, r] of Object.entries(ROOMS)) {
+    ctx.fillStyle = r.fill;
+    ctx.fillRect(r.x, r.y, r.w, r.h);
+  }
+
+  // Room labels
+  ctx.font = 'bold 11px PingFang SC, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(200,170,100,0.5)';
+  const labelPos = [
+    ['院子', 370, 28],
+    ['厨房', 102, 113], ['餐厅', 367, 113], ['游戏室', 635, 113],
+    ['衣帽间', 102, 275], ['客厅', 367, 275], ['次阳台', 635, 275],
+    ['卧室', 130, 437], ['卫生间', 510, 437],
+  ];
+  for (const [lbl, lx, ly] of labelPos) ctx.fillText(lbl, lx, ly);
+
+  // Outer wall
+  ctx.strokeStyle = '#3a2010'; ctx.lineWidth = 9;
+  ctx.strokeRect(14, 14, 712, 572);
+
+  // Inner walls
+  ctx.strokeStyle = '#3a2010'; ctx.lineWidth = 6;
+
+  // y=100 horizontal (gaps for doors)
+  line(14, 100, 79, 100);
+  line(154, 100, 190, 100);
+  line(190, 100, 306, 100);
+  line(440, 100, 545, 100);
+  line(545, 100, 558, 100);
+  line(636, 100, 726, 100);
+
+  // y=262 horizontal
+  line(14, 262, 72, 262);
+  line(146, 262, 726, 262);
+
+  // y=424 horizontal
+  line(14, 424, 726, 424);
+
+  // x=190 vertical (y=100→424)
+  line(190, 100, 190, 142);
+  line(190, 208, 190, 300);
+  line(190, 368, 190, 424);
+
+  // x=545 vertical (y=100→424)
+  line(545, 100, 545, 134);
+  line(545, 200, 545, 296);
+  line(545, 370, 545, 424);
+
+  // x=390 vertical (y=424→586)
+  line(390, 424, 390, 488);
+  line(390, 554, 390, 586);
+
+  // Swing door arcs
+  ctx.strokeStyle = '#7a5030'; ctx.lineWidth = 1.5;
+  arc(190, 142, 66, 0, Math.PI / 2);       // 厨房→餐厅
+  arc(190, 300, 68, 0, Math.PI / 2);       // 衣帽间→客厅
+  arc(390, 554, 66, -Math.PI / 2, 0);      // 卧室→卫生间
+
+  // Sliding doors (Tang lattice)
+  slidingDoorH(306, 100, 134);             // 院子↔餐厅
+  slidingDoorV(545, 136, 62);             // 餐厅↔游戏室
+  slidingDoorV(545, 298, 70);             // 客厅↔次阳台
+
+  // Minimal furniture hints (faint)
+  ctx.strokeStyle = 'rgba(180,150,80,0.18)'; ctx.lineWidth = 1;
+  // Dining table circle
+  ctx.beginPath(); ctx.arc(367, 188, 38, 0, Math.PI * 2); ctx.stroke();
+  // Sofa L-shape in 客厅
+  ctx.strokeRect(210, 300, 100, 28);
+  ctx.strokeRect(200, 300, 28, 60);
+  // TV in 客厅
+  ctx.strokeRect(310, 390, 80, 12);
+  // Bed in 卧室
+  ctx.strokeRect(30, 450, 100, 80);
+  // Game chair in 游戏室
+  ctx.beginPath(); ctx.arc(620, 185, 22, 0, Math.PI * 2); ctx.stroke();
+}
+
+// ─── Sprites ──────────────────────────────────────────────────────────────────
+function drawSprites() {
+  for (const name of NAMES) {
+    const s = sprites[name];
+    // Smooth lerp
+    s.x += (s.tx - s.x) * 0.1;
+    s.y += (s.ty - s.y) * 0.1;
+
+    const color = CHAR_COLORS[name];
+
+    // Glow shadow
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 8;
+
+    // Circle body
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, SPRITE_R, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+
+    // White border
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, SPRITE_R, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Name
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px PingFang SC, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(name, s.x, s.y + 3.5);
+
+    // Mood tag
+    if (s.mood) {
+      ctx.fillStyle = 'rgba(20,14,4,0.7)';
+      ctx.font = '9px PingFang SC, sans-serif';
+      const mw = ctx.measureText(s.mood).width + 6;
+      roundRect(s.x - mw / 2, s.y + SPRITE_R + 2, mw, 13, 3);
+      ctx.fill();
+      ctx.fillStyle = color;
+      ctx.fillText(s.mood, s.x, s.y + SPRITE_R + 12);
+    }
+  }
+}
+
+// ─── Bubbles ──────────────────────────────────────────────────────────────────
+function wrapText(text, maxW) {
+  ctx.font = '12px PingFang SC, sans-serif';
+  const lines = [];
+  let line = '';
+  for (const ch of text) {
+    const test = line + ch;
+    if (ctx.measureText(test).width > maxW && line) {
+      lines.push(line); line = ch;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+function drawBubbles() {
+  const now = Date.now();
+  for (let i = bubbles.length - 1; i >= 0; i--) {
+    const b = bubbles[i];
+    if (now > b.expiry) { bubbles.splice(i, 1); continue; }
+
+    const alpha = Math.min(1, (b.expiry - now) / 600);
+    ctx.globalAlpha = alpha;
+
+    const maxW = 150;
+    const lines = wrapText(b.text, maxW);
+    const bw = maxW + 18;
+    const bh = lines.length * 17 + 12;
+    const color = CHAR_COLORS[b.name] || '#ccc';
+
+    // Clamp bubble position to canvas
+    let bx = b.sx - bw / 2;
+    let by = b.sy - SPRITE_R - bh - 10;
+    bx = Math.max(4, Math.min(CANVAS_W - bw - 4, bx));
+    by = Math.max(4, by);
+
+    // Background
+    ctx.fillStyle = 'rgba(18,12,4,0.92)';
+    roundRect(bx, by, bw, bh, 6);
+    ctx.fill();
+
+    // Border
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    roundRect(bx, by, bw, bh, 6);
+    ctx.stroke();
+
+    // Tail
+    const tailX = Math.max(bx + 10, Math.min(bx + bw - 10, b.sx));
+    ctx.beginPath();
+    ctx.moveTo(tailX - 5, by + bh);
+    ctx.lineTo(tailX, by + bh + 8);
+    ctx.lineTo(tailX + 5, by + bh);
+    ctx.fillStyle = 'rgba(18,12,4,0.92)';
+    ctx.fill();
+
+    // Text
+    ctx.fillStyle = '#e8d090';
+    ctx.font = '12px PingFang SC, sans-serif';
+    ctx.textAlign = 'left';
+    lines.forEach((ln, i) => ctx.fillText(ln, bx + 9, by + 15 + i * 17));
+
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ─── Render loop ──────────────────────────────────────────────────────────────
+function render() {
+  ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+  drawFloorplan();
+  drawSprites();
+  drawBubbles();
+  requestAnimationFrame(render);
+}
+render();
+
+// ─── Log panel ────────────────────────────────────────────────────────────────
+const logPanel = document.getElementById('log-panel');
+const simTimeEl = document.getElementById('sim-time');
+const statusEl = document.getElementById('status');
+
+function addLog(html) {
+  const div = document.createElement('div');
+  div.className = 'log-entry';
+  div.innerHTML = html;
+  logPanel.prepend(div);
+  while (logPanel.children.length > 300) logPanel.removeChild(logPanel.lastChild);
+}
+
+// ─── WebSocket ────────────────────────────────────────────────────────────────
+function connect() {
+  const ws = new WebSocket(`ws://${location.host}/ws`);
+
+  ws.onopen = () => { statusEl.textContent = '已连接'; };
+  ws.onclose = () => {
+    statusEl.textContent = '已断开，5秒后重连...';
+    setTimeout(connect, 5000);
+  };
+  ws.onerror = () => { statusEl.textContent = '连接错误'; };
+
+  ws.onmessage = ({ data }) => {
+    try { handle(JSON.parse(data)); } catch (e) { console.error(e); }
+  };
+}
+
+function handle(ev) {
+  switch (ev.type) {
+    case 'tick_start':
+      simTimeEl.textContent = ev.sim_time;
+      break;
+
+    case 'agent_action': {
+      const { name, room, action, dialogue, mood, thought } = ev;
+      const s = sprites[name];
+      if (!s) break;
+
+      // Move sprite target to new room center + offset
+      if (room && ROOMS[room]) {
+        const r = ROOMS[room];
+        const off = roomOffset(name);
+        s.tx = r.cx + off.x;
+        s.ty = r.cy + off.y;
+        s.room = room;
+      }
+      if (mood) s.mood = mood;
+
+      // Speech bubble
+      if (dialogue && dialogue.trim()) {
+        bubbles.push({ name, text: dialogue, sx: s.x, sy: s.y, expiry: Date.now() + BUBBLE_DURATION });
+      }
+
+      // Log
+      const color = CHAR_COLORS[name] || '#aaa';
+      addLog(
+        `<span class="log-time">${simTimeEl.textContent}</span>` +
+        `<span class="log-name" style="color:${color}">${name}</span>` +
+        (thought ? `<span class="log-thought">${thought}</span>` : '') +
+        (action ? `<span class="log-action">${action}</span>` : '') +
+        (dialogue ? ` <span class="log-dialogue">「${dialogue}」</span>` : '') +
+        (mood ? `<span class="log-mood">[${mood}]</span>` : '')
+      );
+      break;
+    }
+
+    case 'world_update':
+      simTimeEl.textContent = ev.sim_time;
+      if (ev.moods) {
+        for (const [name, mood] of Object.entries(ev.moods)) {
+          if (sprites[name]) sprites[name].mood = mood;
+        }
+      }
+      if (ev.positions) {
+        for (const [name, room] of Object.entries(ev.positions)) {
+          const s = sprites[name];
+          if (s && ROOMS[room]) {
+            const r = ROOMS[room];
+            const off = roomOffset(name);
+            s.tx = r.cx + off.x;
+            s.ty = r.cy + off.y;
+            s.room = room;
+          }
+        }
+      }
+      break;
+
+    case 'simulation_end':
+      statusEl.textContent = `模拟结束`;
+      addLog(`<span class="log-system">—— 除夕夜结束 ${ev.sim_time} ——</span>`);
+      break;
+  }
+}
+
+connect();
+</script>
+</body>
+</html>
