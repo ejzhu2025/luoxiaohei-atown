@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<style>
+  body { background:#1a1a1a; margin:0; padding:16px; display:flex; flex-direction:column; align-items:center; font-family:'PingFang SC','Microsoft YaHei',sans-serif; }
+  h2 { color:#e2b04a; margin:0 0 4px; font-size:16px; }
+  p { color:#aaa; font-size:11px; margin:0 0 12px; }
+</style>
+</head>
+<body>
+<h2>哪吒家 · 豪华大平层 平面图</h2>
+<p>唐式推拉连子窗 · 传统中式 + 现代豪宅融合 · 四位角色初始位置标注</p>
+<svg width="740" height="600" viewBox="0 0 740 600" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <pattern id="wood" width="36" height="9" patternUnits="userSpaceOnUse">
+    <rect width="36" height="9" fill="#f0ddb8"/>
+    <line x1="0" y1="9" x2="36" y2="9" stroke="#d4c090" stroke-width="0.4"/>
+    <line x1="18" y1="0" x2="18" y2="9" stroke="#d4c090" stroke-width="0.25"/>
+  </pattern>
+  <pattern id="stone" width="28" height="28" patternUnits="userSpaceOnUse">
+    <rect width="28" height="28" fill="#c4d4bc"/>
+    <rect x="1" y="1" width="12" height="12" fill="#b4c4ac" rx="1"/>
+    <rect x="15" y="1" width="12" height="12" fill="#bcceb4" rx="1"/>
+    <rect x="1" y="15" width="12" height="12" fill="#bcceb4" rx="1"/>
+    <rect x="15" y="15" width="12" height="12" fill="#b4c4ac" rx="1"/>
+  </pattern>
+  <pattern id="tile" width="18" height="18" patternUnits="userSpaceOnUse">
+    <rect width="18" height="18" fill="#e4f0ec"/>
+    <rect x="0.5" y="0.5" width="17" height="17" fill="none" stroke="#c4dcd4" stroke-width="0.5"/>
+  </pattern>
+  <pattern id="lattice" width="7" height="7" patternUnits="userSpaceOnUse">
+    <rect width="7" height="7" fill="#c8a06a"/>
+    <line x1="0" y1="3.5" x2="7" y2="3.5" stroke="#7a4a1a" stroke-width="0.7"/>
+    <line x1="3.5" y1="0" x2="3.5" y2="7" stroke="#7a4a1a" stroke-width="0.7"/>
+  </pattern>
+  <pattern id="carpet" width="20" height="20" patternUnits="userSpaceOnUse">
+    <rect width="20" height="20" fill="#d8d0e8"/>
+    <rect x="4" y="4" width="12" height="12" fill="none" stroke="#b8a8d0" stroke-width="0.5"/>
+    <circle cx="10" cy="10" r="2" fill="#b0a0c8" opacity="0.5"/>
+  </pattern>
+  <filter id="sh" x="-5%" y="-5%" width="115%" height="115%">
+    <feDropShadow dx="1.5" dy="1.5" stdDeviation="2" flood-opacity="0.35"/>
+  </filter>
+</defs>
+
+<!-- ===== ROOM FILLS ===== -->
+<!-- 院子/阳台 top -->
+<rect x="14" y="14" width="712" height="86" fill="url(#stone)"/>
+<!-- 厨房 -->
+<rect x="14" y="100" width="216" height="240" fill="url(#tile)"/>
+<!-- 客厅 -->
+<rect x="230" y="100" width="280" height="240" fill="url(#wood)"/>
+<!-- 游戏室 -->
+<rect x="510" y="100" width="216" height="240" fill="url(#carpet)"/>
+<!-- 衣帽间 -->
+<rect x="14" y="340" width="216" height="130" fill="#f0e4d4"/>
+<!-- 餐厅 -->
+<rect x="230" y="340" width="280" height="130" fill="url(#wood)"/>
+<!-- 内廊/次阳台 -->
+<rect x="510" y="340" width="216" height="130" fill="url(#stone)"/>
+<!-- 卧室 -->
+<rect x="14" y="470" width="376" height="116" fill="#e0eaf4"/>
+<!-- 卫生间 -->
+<rect x="390" y="470" width="336" height="116" fill="url(#tile)"/>
+
+<!-- ===== OUTER WALLS ===== -->
+<rect x="14" y="14" width="712" height="572" fill="none" stroke="#2a1608" stroke-width="10"/>
+
+<!-- ===== INNER WALLS (with door gaps) ===== -->
+<!-- 院子 | 厨房 separator, y=100, x=14..95, gap 95-160, x=160..230 -->
+<line x1="14" y1="100" x2="92" y2="100" stroke="#2a1608" stroke-width="8"/>
+<line x1="162" y1="100" x2="230" y2="100" stroke="#2a1608" stroke-width="8"/>
+<!-- 院子 | 客厅 y=100, x=230..320, gap 320-430, x=430..510 -->
+<line x1="230" y1="100" x2="318" y2="100" stroke="#2a1608" stroke-width="8"/>
+<line x1="432" y1="100" x2="510" y2="100" stroke="#2a1608" stroke-width="8"/>
+<!-- 院子 | 游戏室 y=100, x=510..560, gap 560-630, x=630..726 -->
+<line x1="510" y1="100" x2="558" y2="100" stroke="#2a1608" stroke-width="8"/>
+<line x1="632" y1="100" x2="726" y2="100" stroke="#2a1608" stroke-width="8"/>
+
+<!-- 厨房 | 客厅 x=230, y=100..200, gap 200-268, y=268..340 -->
+<line x1="230" y1="100" x2="230" y2="198" stroke="#2a1608" stroke-width="8"/>
+<line x1="230" y1="270" x2="230" y2="340" stroke="#2a1608" stroke-width="8"/>
+<!-- 客厅 | 游戏室 x=510, y=100..188, gap 188-258, y=258..340 -->
+<line x1="510" y1="100" x2="510" y2="186" stroke="#2a1608" stroke-width="8"/>
+<line x1="510" y1="260" x2="510" y2="340" stroke="#2a1608" stroke-width="8"/>
+
+<!-- 厨房 | 衣帽间 y=340, x=14..78, gap 78-148, x=148..230 -->
+<line x1="14" y1="340" x2="76" y2="340" stroke="#2a1608" stroke-width="8"/>
+<line x1="150" y1="340" x2="230" y2="340" stroke="#2a1608" stroke-width="8"/>
+<!-- 客厅 | 餐厅 y=340, x=230..308, gap 308-402, x=402..510 -->
+<line x1="230" y1="340" x2="306" y2="340" stroke="#2a1608" stroke-width="8"/>
+<line x1="404" y1="340" x2="510" y2="340" stroke="#2a1608" stroke-width="8"/>
+<!-- 游戏室 | 次阳台 y=340, x=510..540 gap 540-630 x=630..726 -->
+<line x1="510" y1="340" x2="538" y2="340" stroke="#2a1608" stroke-width="8"/>
+<line x1="632" y1="340" x2="726" y2="340" stroke="#2a1608" stroke-width="8"/>
+
+<!-- 衣帽间 | 餐厅 x=230, y=340..388, gap 388-442, y=442..470 -->
+<line x1="230" y1="340" x2="230" y2="386" stroke="#2a1608" stroke-width="8"/>
+<line x1="230" y1="444" x2="230" y2="470" stroke="#2a1608" stroke-width="8"/>
+<!-- 餐厅 | 次阳台 x=510, y=340..470 (thin, mostly open) -->
+<line x1="510" y1="340" x2="510" y2="470" stroke="#2a1608" stroke-width="6"/>
+
+<!-- row3 | row4 y=470 -->
+<!-- 衣帽间+餐厅 | 卧室: x=14..56, gap 56-128, x=128..390 -->
+<line x1="14" y1="470" x2="54" y2="470" stroke="#2a1608" stroke-width="8"/>
+<line x1="130" y1="470" x2="390" y2="470" stroke="#2a1608" stroke-width="8"/>
+<!-- 次阳台 | 卫生间 y=470, x=510..726 (closed) -->
+<line x1="510" y1="470" x2="726" y2="470" stroke="#2a1608" stroke-width="8"/>
+<!-- 卧室 | 卫生间 x=390, y=470..586 -->
+<line x1="390" y1="470" x2="390" y2="586" stroke="#2a1608" stroke-width="8"/>
+
+<!-- ===== TANG DYNASTY 推拉门 (连子窗格) ===== -->
+<!-- 客厅 → 院子 gap x=320-430, y=100 -->
+<rect x="320" y="94" width="55" height="12" fill="url(#lattice)"/>
+<line x1="320" y1="94" x2="320" y2="106" stroke="#5a2a08" stroke-width="1.5"/>
+<line x1="375" y1="94" x2="375" y2="106" stroke="#5a2a08" stroke-width="1.5"/>
+<rect x="375" y="94" width="55" height="12" fill="url(#lattice)"/>
+<line x1="430" y1="94" x2="430" y2="106" stroke="#5a2a08" stroke-width="1.5"/>
+
+<!-- 厨房 → 院子 gap x=92-162 -->
+<rect x="92" y="94" width="35" height="12" fill="url(#lattice)"/>
+<line x1="92" y1="94" x2="92" y2="106" stroke="#5a2a08" stroke-width="1.5"/>
+<line x1="127" y1="94" x2="127" y2="106" stroke="#5a2a08" stroke-width="1.5"/>
+<rect x="127" y="94" width="35" height="12" fill="url(#lattice)"/>
+<line x1="162" y1="94" x2="162" y2="106" stroke="#5a2a08" stroke-width="1.5"/>
+
+<!-- 游戏室 → 院子 gap x=558-632 -->
+<rect x="558" y="94" width="37" height="12" fill="url(#lattice)"/>
+<line x1="558" y1="94" x2="558" y2="106" stroke="#5a2a08" stroke-width="1.5"/>
+<line x1="595" y1="94" x2="595" y2="106" stroke="#5a2a08" stroke-width="1.5"/>
+<rect x="595" y="94" width="37" height="12" fill="url(#lattice)"/>
+<line x1="632" y1="94" x2="632" y2="106" stroke="#5a2a08" stroke-width="1.5"/>
+
+<!-- 厨房 | 客厅 gap y=198-270, x=230 (swing door) -->
+<path d="M226,198 Q224,234 226,270" fill="none" stroke="#c8a060" stroke-width="1.5" stroke-dasharray="4,2"/>
+<line x1="226" y1="198" x2="234" y2="198" stroke="#5a2a08" stroke-width="1.5"/>
+<line x1="226" y1="270" x2="234" y2="270" stroke="#5a2a08" stroke-width="1.5"/>
+
+<!-- 客厅 | 游戏室 gap y=186-260, x=510 (sliding) -->
+<rect x="504" y="186" width="12" height="37" fill="url(#lattice)"/>
+<line x1="504" y1="186" x2="516" y2="186" stroke="#5a2a08" stroke-width="1.5"/>
+<line x1="504" y1="223" x2="516" y2="223" stroke="#5a2a08" stroke-width="1.5"/>
+<rect x="504" y="223" width="12" height="37" fill="url(#lattice)"/>
+<line x1="504" y1="260" x2="516" y2="260" stroke="#5a2a08" stroke-width="1.5"/>
+
+<!-- 客厅 | 餐厅 gap x=306-404, y=340 -->
+<rect x="306" y="334" width="49" height="12" fill="url(#lattice)"/>
+<line x1="306" y1="334" x2="306" y2="346" stroke="#5a2a08" stroke-width="1.5"/>
+<line x1="355" y1="334" x2="355" y2="346" stroke="#5a2a08" stroke-width="1.5"/>
+<rect x="355" y="334" width="49" height="12" fill="url(#lattice)"/>
+<line x1="404" y1="334" x2="404" y2="346" stroke="#5a2a08" stroke-width="1.5"/>
+
+<!-- 游戏室 | 次阳台 gap x=538-632 -->
+<rect x="538" y="334" width="47" height="12" fill="url(#lattice)"/>
+<line x1="538" y1="334" x2="538" y2="346" stroke="#5a2a08" stroke-width="1.5"/>
+<line x1="585" y1="334" x2="585" y2="346" stroke="#5a2a08" stroke-width="1.5"/>
+<rect x="585" y="334" width="47" height="12" fill="url(#lattice)"/>
+<line x1="632" y1="334" x2="632" y2="346" stroke="#5a2a08" stroke-width="1.5"/>
+
+<!-- 衣帽间|餐厅 gap y=386-444, x=230 swing -->
+<path d="M226,386 Q222,415 226,444" fill="none" stroke="#c8a060" stroke-width="1.5" stroke-dasharray="3,2"/>
+<line x1="226" y1="386" x2="234" y2="386" stroke="#5a2a08" stroke-width="1.5"/>
+<line x1="226" y1="444" x2="234" y2="444" stroke="#5a2a08" stroke-width="1.5"/>
+
+<!-- 卧室 gap y=470, x=54-130 swing -->
+<path d="M54,466 A54,54 0 0 1 130,470" fill="none" stroke="#c8a060" stroke-width="1.5"/>
+
+<!-- ===== EXTERIOR WINDOWS (连子窗格 on outer walls) ===== -->
+<!-- Left wall 厨房 windows -->
+<rect x="10" y="128" width="9" height="36" fill="url(#lattice)"/>
+<rect x="10" y="178" width="9" height="36" fill="url(#lattice)"/>
+<rect x="10" y="228" width="9" height="36" fill="url(#lattice)"/>
+<!-- Left wall 衣帽间 window -->
+<rect x="10" y="360" width="9" height="44" fill="url(#lattice)"/>
+<!-- Left wall 卧室 window -->
+<rect x="10" y="498" width="9" height="40" fill="url(#lattice)"/>
+<!-- Right wall 游戏室 windows -->
+<rect x="721" y="128" width="9" height="36" fill="url(#lattice)"/>
+<rect x="721" y="180" width="9" height="36" fill="url(#lattice)"/>
+<rect x="721" y="232" width="9" height="36" fill="url(#lattice)"/>
+<!-- Right wall 次阳台 big window -->
+<rect x="721" y="355" width="9" height="60" fill="url(#lattice)"/>
+<!-- Bottom wall 卧室 windows -->
+<rect x="80" y="581" width="56" height="9" fill="url(#lattice)"/>
+<rect x="200" y="581" width="56" height="9" fill="url(#lattice)"/>
+<rect x="290" y="581" width="56" height="9" fill="url(#lattice)"/>
+<!-- Bottom wall 卫生间 window -->
+<rect x="460" y="581" width="44" height="9" fill="url(#lattice)"/>
+<rect x="600" y="581" width="44" height="9" fill="url(#lattice)"/>
+
+<!-- ===== 院子 DECOR ===== -->
+<!-- Bamboo cluster left -->
+<ellipse cx="56" cy="52" rx="14" ry="18" fill="#4a7a30" opacity="0.85"/>
+<ellipse cx="70" cy="42" rx="9" ry="14" fill="#3a6a20" opacity="0.85"/>
+<!-- Lantern string above main entrance area -->
+<line x1="230" y1="22" x2="510" y2="22" stroke="#8b3020" stroke-width="1"/>
+<circle cx="258" cy="22" r="5" fill="#e03030" opacity="0.9"/>
+<circle cx="298" cy="22" r="5" fill="#e03030" opacity="0.9"/>
+<circle cx="338" cy="22" r="5" fill="#f0a020" opacity="0.9"/>
+<circle cx="378" cy="22" r="5" fill="#e03030" opacity="0.9"/>
+<circle cx="418" cy="22" r="5" fill="#e03030" opacity="0.9"/>
+<circle cx="458" cy="22" r="5" fill="#f0a020" opacity="0.9"/>
+<circle cx="498" cy="22" r="5" fill="#e03030" opacity="0.9"/>
+<!-- Stone path -->
+<ellipse cx="370" cy="85" rx="28" ry="10" fill="#a8b898" opacity="0.6"/>
+<ellipse cx="370" cy="65" rx="22" ry="8" fill="#b0c0a0" opacity="0.5"/>
+<ellipse cx="370" cy="48" rx="18" ry="7" fill="#a8b898" opacity="0.5"/>
+<!-- Planter pot right -->
+<ellipse cx="660" cy="52" rx="16" ry="20" fill="#4a7a30" opacity="0.85"/>
+<ellipse cx="672" cy="42" rx="10" ry="13" fill="#3a6a20" opacity="0.8"/>
+
+<!-- ===== 厨房 FURNITURE ===== -->
+<!-- Counter along left wall -->
+<rect x="18" y="104" width="19" height="224" fill="#9a7040" rx="1"/>
+<!-- Counter along bottom of kitchen -->
+<rect x="18" y="314" width="206" height="20" fill="#9a7040" rx="1"/>
+<!-- Stove on left counter: 2 burners -->
+<rect x="20" y="170" width="15" height="60" fill="#707070"/>
+<circle cx="27" cy="186" r="7" fill="#505050"/>
+<circle cx="27" cy="215" r="7" fill="#505050"/>
+<!-- Island -->
+<rect x="68" y="185" width="94" height="58" fill="#b08848" rx="3" filter="url(#sh)"/>
+<!-- Big wok on island -->
+<circle cx="115" cy="214" r="14" fill="#686868"/>
+<circle cx="115" cy="214" r="10" fill="#505050"/>
+<!-- Fridge top-right of kitchen -->
+<rect x="192" y="104" width="34" height="52" fill="#ccd4dc" rx="2" filter="url(#sh)"/>
+<line x1="209" y1="106" x2="209" y2="154" stroke="#aaa" stroke-width="1"/>
+<!-- Hanging pot rack indicator -->
+<line x1="68" y1="118" x2="162" y2="118" stroke="#9a7040" stroke-width="2"/>
+<circle cx="88" cy="118" r="4" fill="#707070"/>
+<circle cx="108" cy="118" r="4" fill="#707070"/>
+<circle cx="128" cy="118" r="4" fill="#707070"/>
+<circle cx="148" cy="118" r="4" fill="#707070"/>
+
+<!-- ===== 客厅 FURNITURE ===== -->
+<!-- TV unit along top wall -->
+<rect x="270" y="108" width="180" height="13" fill="#4a2e10" rx="1" filter="url(#sh)"/>
+<!-- TV screen -->
+<rect x="278" y="102" width="164" height="9" fill="#0a0a18" rx="1"/>
+<rect x="280" y="103" width="160" height="7" fill="#1a2a4a" rx="1" opacity="0.8"/>
+<!-- PS5 on unit -->
+<rect x="360" y="118" width="22" height="6" fill="#e8e8f8" rx="1"/>
+<!-- Controllers hanging below TV unit -->
+<ellipse cx="340" cy="126" rx="7" ry="4" fill="#3a3a5a"/>
+<ellipse cx="358" cy="126" rx="7" ry="4" fill="#3a3a5a"/>
+
+<!-- New year string lights -->
+<path d="M234,122 C260,118 290,124 320,119 C350,114 380,121 410,117 C440,113 470,120 506,117"
+      fill="none" stroke="#c03020" stroke-width="1" stroke-dasharray="2,7"/>
+<circle cx="258" cy="119" r="3" fill="#e04040"/>
+<circle cx="320" cy="118" r="3" fill="#e04040"/>
+<circle cx="383" cy="118" r="3" fill="#f0a020"/>
+<circle cx="445" cy="118" r="3" fill="#e04040"/>
+
+<!-- Chinese rug -->
+<rect x="260" y="198" width="210" height="120" fill="#c0903a" opacity="0.25" rx="4"/>
+<rect x="262" y="200" width="206" height="116" fill="none" stroke="#a07030" stroke-width="1.5" rx="3"/>
+<rect x="270" y="208" width="190" height="100" fill="none" stroke="#a07030" stroke-width="0.7" rx="2" opacity="0.5"/>
+
+<!-- L-sofa main section -->
+<rect x="260" y="238" width="148" height="44" fill="#7a4e28" rx="4" filter="url(#sh)"/>
+<!-- L-sofa side section -->
+<rect x="402" y="238" width="44" height="80" fill="#7a4e28" rx="4" filter="url(#sh)"/>
+<!-- Cushions -->
+<rect x="264" y="242" width="42" height="36" fill="#944f25" rx="3"/>
+<rect x="310" y="242" width="42" height="36" fill="#944f25" rx="3"/>
+<rect x="356" y="242" width="41" height="36" fill="#944f25" rx="3"/>
+<!-- Back cushions -->
+<rect x="265" y="238" width="280" height="6" fill="#6a3e18" rx="2" opacity="0.5"/>
+
+<!-- Bean bag -->
+<ellipse cx="472" cy="272" rx="26" ry="22" fill="#8a5030" filter="url(#sh)"/>
+
+<!-- Coffee table -->
+<rect x="302" y="210" width="84" height="26" fill="#5a3818" rx="3" filter="url(#sh)"/>
+<!-- Tea cups -->
+<circle cx="320" cy="223" r="5" fill="#c89050"/>
+<circle cx="336" cy="223" r="5" fill="#c89050"/>
+<!-- Snack bowl -->
+<circle cx="355" cy="223" r="6" fill="#e8d0a0" opacity="0.9"/>
+
+<!-- Floor lamp -->
+<line x1="262" y1="200" x2="262" y2="238" stroke="#5a3818" stroke-width="2"/>
+<ellipse cx="262" cy="198" rx="9" ry="5" fill="#f0d860" opacity="0.75"/>
+
+<!-- ===== 游戏室 FURNITURE ===== -->
+<!-- L-shaped desk top+right walls -->
+<rect x="576" y="107" width="140" height="22" fill="#4a2e10" rx="2" filter="url(#sh)"/>
+<rect x="696" y="107" width="22" height="130" fill="#4a2e10" rx="2" filter="url(#sh)"/>
+<!-- Dual monitors -->
+<rect x="584" y="96" width="46" height="30" fill="#080810" rx="2"/>
+<rect x="636" y="96" width="46" height="30" fill="#080810" rx="2"/>
+<!-- Monitor glow -->
+<rect x="586" y="98" width="42" height="26" fill="#1a3060" rx="1" opacity="0.8"/>
+<rect x="638" y="98" width="42" height="26" fill="#1a4a30" rx="1" opacity="0.8"/>
+<!-- Gaming chair -->
+<rect x="616" y="136" width="40" height="46" fill="#1a1a5a" rx="5" filter="url(#sh)"/>
+<rect x="620" y="130" width="32" height="12" fill="#2a2a7a" rx="3"/>
+<!-- VR headset on shelf -->
+<rect x="516" y="108" width="48" height="22" fill="#3a3a8a" rx="3" filter="url(#sh)"/>
+<ellipse cx="540" cy="119" rx="16" ry="8" fill="#5050a0" opacity="0.8"/>
+<!-- Games cabinet -->
+<rect x="514" y="268" width="68" height="58" fill="#4a2e10" rx="3" filter="url(#sh)"/>
+<rect x="517" y="271" width="62" height="26" fill="#080810" rx="1"/>
+<!-- Switch console -->
+<rect x="522" y="274" width="50" height="8" fill="#e0e0e0" rx="2"/>
+<!-- Sofa/bean bag in game room -->
+<ellipse cx="634" cy="296" rx="38" ry="26" fill="#2a2a5a" opacity="0.85" filter="url(#sh)"/>
+
+<!-- ===== 衣帽间 FURNITURE ===== -->
+<!-- Closet rail top wall -->
+<rect x="18" y="344" width="200" height="13" fill="#8a6030" rx="1"/>
+<!-- Clothes hanging -->
+<line x1="48" y1="357" x2="48" y2="384" stroke="#c8a050" stroke-width="1.5" stroke-dasharray="3,3"/>
+<line x1="68" y1="357" x2="68" y2="384" stroke="#c8a050" stroke-width="1.5" stroke-dasharray="3,3"/>
+<line x1="88" y1="357" x2="88" y2="384" stroke="#c8a050" stroke-width="1.5" stroke-dasharray="3,3"/>
+<line x1="108" y1="357" x2="108" y2="384" stroke="#c8a050" stroke-width="1.5" stroke-dasharray="3,3"/>
+<line x1="128" y1="357" x2="128" y2="384" stroke="#c8a050" stroke-width="1.5" stroke-dasharray="3,3"/>
+<line x1="148" y1="357" x2="148" y2="384" stroke="#c8a050" stroke-width="1.5" stroke-dasharray="3,3"/>
+<!-- Rail left wall -->
+<rect x="18" y="344" width="13" height="110" fill="#8a6030" rx="1"/>
+<!-- 哪吒战袍 on display -->
+<rect x="154" y="360" width="22" height="52" fill="#d83028" opacity="0.85" rx="2" filter="url(#sh)"/>
+<line x1="165" y1="357" x2="165" y2="360" stroke="#8a5020" stroke-width="2"/>
+<!-- Full mirror -->
+<rect x="184" y="357" width="14" height="92" fill="#9ab8c8" opacity="0.65" rx="1" filter="url(#sh)"/>
+<rect x="185" y="358" width="12" height="90" fill="none" stroke="#7a6030" stroke-width="1.5"/>
+<!-- Shoe rack -->
+<rect x="36" y="440" width="110" height="18" fill="#8a6030" rx="2"/>
+<ellipse cx="58" cy="449" rx="10" ry="5" fill="#3a2418"/>
+<ellipse cx="82" cy="449" rx="10" ry="5" fill="#2a2050"/>
+<ellipse cx="106" cy="449" rx="10" ry="5" fill="#602020"/>
+
+<!-- ===== 餐厅 FURNITURE ===== -->
+<!-- Round dining table -->
+<circle cx="370" cy="406" r="60" fill="#6a4818" filter="url(#sh)"/>
+<circle cx="370" cy="406" r="54" fill="#9a7038"/>
+<!-- Lazy Susan -->
+<circle cx="370" cy="406" r="24" fill="#b08840" opacity="0.8"/>
+<!-- Hotpot center -->
+<circle cx="370" cy="406" r="16" fill="#d06028" opacity="0.9"/>
+<circle cx="370" cy="406" r="9" fill="#b04018" opacity="0.9"/>
+<!-- Dishes around table -->
+<circle cx="348" cy="378" r="10" fill="#e06040" opacity="0.85"/>
+<ellipse cx="396" cy="375" rx="13" ry="7" fill="#c87838" opacity="0.85"/>
+<circle cx="418" cy="402" r="10" fill="#f0e8c0" opacity="0.85"/>
+<circle cx="410" cy="428" r="10" fill="#c04040" opacity="0.85"/>
+<ellipse cx="370" cy="450" rx="14" ry="7" fill="#d08028" opacity="0.85"/>
+<circle cx="328" cy="428" r="10" fill="#60a060" opacity="0.85"/>
+<!-- 4 chairs -->
+<rect x="353" y="334" width="34" height="20" fill="#5a3818" rx="3" filter="url(#sh)"/>
+<rect x="353" y="452" width="34" height="20" fill="#5a3818" rx="3" filter="url(#sh)"/>
+<rect x="294" y="390" width="20" height="34" fill="#5a3818" rx="3" filter="url(#sh)"/>
+<rect x="426" y="390" width="20" height="34" fill="#5a3818" rx="3" filter="url(#sh)"/>
+<!-- Wine cabinet -->
+<rect x="238" y="344" width="32" height="72" fill="#4a2e10" rx="3" filter="url(#sh)"/>
+<rect x="241" y="347" width="26" height="34" fill="#0a1808" rx="1"/>
+<rect x="244" y="350" width="6" height="24" fill="#2a6018" rx="2"/>
+<rect x="254" y="350" width="6" height="24" fill="#6a1818" rx="2"/>
+
+<!-- ===== 次阳台 FURNITURE ===== -->
+<!-- 2 rattan chairs -->
+<rect x="524" y="355" width="36" height="36" fill="#b89060" rx="4" filter="url(#sh)"/>
+<rect x="572" y="355" width="36" height="36" fill="#b89060" rx="4" filter="url(#sh)"/>
+<!-- Small table -->
+<rect x="546" y="364" width="22" height="16" fill="#9a7040" rx="2"/>
+<!-- Large potted plant -->
+<ellipse cx="622" cy="386" rx="20" ry="24" fill="#3a7028" opacity="0.9" filter="url(#sh)"/>
+<ellipse cx="636" cy="374" rx="13" ry="16" fill="#2a6018" opacity="0.9"/>
+<ellipse cx="610" cy="375" rx="11" ry="14" fill="#4a8038" opacity="0.85"/>
+<ellipse cx="622" cy="455" rx="13" ry="9" fill="#b06030"/>
+
+<!-- ===== 卧室 FURNITURE ===== -->
+<!-- Bed with headboard -->
+<rect x="88" y="476" width="200" height="98" fill="#4a3050" rx="4" filter="url(#sh)"/>
+<rect x="88" y="473" width="200" height="16" fill="#3a2040" rx="3"/>
+<!-- Pillows -->
+<rect x="100" y="480" width="52" height="32" fill="#c8a0c0" rx="5"/>
+<rect x="160" y="480" width="52" height="32" fill="#c8a0c0" rx="5"/>
+<!-- Blanket -->
+<rect x="100" y="514" width="184" height="54" fill="#7a5088" rx="3" opacity="0.8"/>
+<!-- Nightstand L -->
+<rect x="40" y="484" width="42" height="40" fill="#5a3818" rx="3" filter="url(#sh)"/>
+<circle cx="61" cy="497" r="6" fill="#f0d060" opacity="0.8"/>
+<!-- Nightstand R -->
+<rect x="294" y="484" width="42" height="40" fill="#5a3818" rx="3" filter="url(#sh)"/>
+<!-- Smart panel on wall -->
+<rect x="346" y="480" width="26" height="18" fill="#0a1a2a" rx="2"/>
+<rect x="348" y="482" width="22" height="14" fill="#1a3a5a" rx="1" opacity="0.8"/>
+
+<!-- ===== 卫生间 FURNITURE ===== -->
+<!-- Bathtub -->
+<rect x="398" y="480" width="106" height="66" fill="#c8e4f2" rx="8" filter="url(#sh)"/>
+<rect x="402" y="484" width="98" height="58" fill="#daeefa" rx="6"/>
+<ellipse cx="451" cy="513" rx="36" ry="24" fill="#c4e0f0" opacity="0.7"/>
+<!-- Shower enclosure -->
+<rect x="516" y="476" width="82" height="68" fill="none" stroke="#8ab0c0" stroke-width="1.5" stroke-dasharray="4,2" rx="3"/>
+<rect x="518" y="478" width="78" height="64" fill="#d4e8f0" opacity="0.3" rx="2"/>
+<!-- Shower head -->
+<circle cx="584" cy="488" r="9" fill="#90b0c0"/>
+<!-- Toilet -->
+<rect x="616" y="476" width="48" height="60" fill="#e0e0e0" rx="6" filter="url(#sh)"/>
+<ellipse cx="640" cy="518" rx="20" ry="14" fill="#ccc"/>
+<rect x="620" y="476" width="40" height="10" fill="#d0d0d0" rx="3"/>
+<!-- Double sink vanity -->
+<rect x="396" y="470" width="100" height="13" fill="#c0c0c0" rx="2"/>
+<ellipse cx="424" cy="476" rx="15" ry="8" fill="#a8c8d8"/>
+<ellipse cx="470" cy="476" rx="15" ry="8" fill="#a8c8d8"/>
+
+<!-- ===== ROOM LABELS ===== -->
+<text x="370" y="54" text-anchor="middle" font-size="12" font-weight="bold" fill="#2a5a20">院 子 · 前 廊</text>
+<text x="370" y="68" text-anchor="middle" font-size="9" fill="#4a7a40">竹林 · 石板路 · 灯笼 · 盆景</text>
+
+<text x="118" y="158" text-anchor="middle" font-size="12" font-weight="bold" fill="#5a3a18">厨 房</text>
+<text x="118" y="170" text-anchor="middle" font-size="8.5" fill="#8a6038">悬挂锅具 · 岛台 · 双眼灶 · 冰箱</text>
+
+<text x="368" y="152" text-anchor="middle" font-size="13" font-weight="bold" fill="#4a2808">客 厅</text>
+<text x="368" y="165" text-anchor="middle" font-size="8.5" fill="#7a5030">65寸TV · PS5 · L形沙发 · 懒人沙发 · 茶几</text>
+
+<text x="613" y="168" text-anchor="middle" font-size="12" font-weight="bold" fill="#2a2060">游 戏 室</text>
+<text x="613" y="180" text-anchor="middle" font-size="8.5" fill="#4a3898">双显示器 · VR · 电竞椅 · Switch</text>
+
+<text x="118" y="380" text-anchor="middle" font-size="11" font-weight="bold" fill="#5a3020">衣 帽 间</text>
+<text x="118" y="392" text-anchor="middle" font-size="8" fill="#7a5040">战袍展示 · 球鞋墙 · 全身镜</text>
+
+<text x="370" y="367" text-anchor="middle" font-size="12" font-weight="bold" fill="#4a2808">餐 厅</text>
+<text x="370" y="379" text-anchor="middle" font-size="8.5" fill="#7a5030">年夜饭圆桌 · 火锅 · 酒柜</text>
+
+<text x="613" y="428" text-anchor="middle" font-size="11" font-weight="bold" fill="#2a4a28">内廊 · 次阳台</text>
+<text x="613" y="440" text-anchor="middle" font-size="8" fill="#4a7040">城市夜景 · 藤椅 · 大植物</text>
+
+<text x="200" y="555" text-anchor="middle" font-size="12" font-weight="bold" fill="#2a3050">卧 室</text>
+<text x="200" y="567" text-anchor="middle" font-size="8.5" fill="#4a5078">特大号床 · 床头智能面板</text>
+
+<text x="555" y="545" text-anchor="middle" font-size="12" font-weight="bold" fill="#2a4a4a">卫 生 间</text>
+<text x="555" y="557" text-anchor="middle" font-size="8.5" fill="#4a7070">浴缸 · 独立淋浴 · 马桶 · 双洗手台</text>
+
+<!-- ===== CHARACTER MARKERS ===== -->
+<!-- 小黑 → 客厅，盯PS5 -->
+<circle cx="430" cy="172" r="11" fill="#18181e" stroke="#6060a0" stroke-width="2"/>
+<text x="430" y="176" text-anchor="middle" font-size="9" fill="#ccccff" font-weight="bold">黑</text>
+<text x="430" y="188" text-anchor="middle" font-size="8" fill="#8888cc">小黑</text>
+
+<!-- 无限 → 厨房 -->
+<circle cx="115" cy="240" r="11" fill="#e8e8f4" stroke="#9090c0" stroke-width="2"/>
+<text x="115" y="244" text-anchor="middle" font-size="9" fill="#303060" font-weight="bold">限</text>
+<text x="115" y="256" text-anchor="middle" font-size="8" fill="#9090c0">无限</text>
+
+<!-- 哪吒 → 懒人沙发 -->
+<circle cx="472" cy="272" r="11" fill="#d02020" stroke="#ff7060" stroke-width="2"/>
+<text x="472" y="276" text-anchor="middle" font-size="9" fill="white" font-weight="bold">吒</text>
+<text x="472" y="288" text-anchor="middle" font-size="8" fill="#ff8070">哪吒</text>
+
+<!-- 鹿野 → 次阳台 -->
+<circle cx="620" cy="415" r="11" fill="#387830" stroke="#70c060" stroke-width="2"/>
+<text x="620" y="419" text-anchor="middle" font-size="9" fill="white" font-weight="bold">野</text>
+<text x="620" y="431" text-anchor="middle" font-size="8" fill="#80cc70">鹿野</text>
+
+<!-- ===== LEGEND ===== -->
+<rect x="18" y="562" width="11" height="8" fill="url(#lattice)"/>
+<text x="34" y="570" font-size="9" fill="#8a6030">= 唐式推拉连子窗格（门/窗）</text>
+<circle cx="52" cy="578" r="5" fill="#18181e" stroke="#6060a0" stroke-width="1.5"/>
+<text x="62" y="582" font-size="9" fill="#aaa">= 角色初始位置</text>
+
+<!-- ===== COMPASS ===== -->
+<g transform="translate(696,46)">
+  <circle cx="0" cy="0" r="20" fill="#f0e4c8" stroke="#8a5020" stroke-width="1.5"/>
+  <text x="0" y="-7" text-anchor="middle" font-size="10" fill="#c02020" font-weight="bold">北</text>
+  <text x="0" y="15" text-anchor="middle" font-size="9" fill="#555">南</text>
+  <text x="-15" y="4" text-anchor="middle" font-size="9" fill="#555">西</text>
+  <text x="15" y="4" text-anchor="middle" font-size="9" fill="#555">东</text>
+  <polygon points="0,-18 -3,-7 3,-7" fill="#c02020"/>
+  <polygon points="0,18 -3,7 3,7" fill="#aaa"/>
+</g>
+
+</svg>
+</body>
+</html>

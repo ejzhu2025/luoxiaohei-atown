@@ -1,0 +1,81 @@
+<h2>可视化风格选哪种？</h2>
+<p class="subtitle">年夜饭模拟的核心呈现方式，决定了整个项目的开发量和观感</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#1a1a2e;padding:16px;min-height:160px;display:flex;flex-direction:column;gap:8px;font-family:monospace;font-size:12px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;height:120px;">
+        <div style="background:#16213e;border:1px solid #e2b04a;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#e2b04a;font-size:11px;">🛋️ 客厅</div>
+        <div style="background:#16213e;border:1px solid #e2b04a;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#e2b04a;font-size:11px;">🍽️ 饭厅</div>
+        <div style="background:#16213e;border:1px solid #4a9ede;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#4a9ede;font-size:11px;">🎮 游戏室</div>
+        <div style="background:#16213e;border:1px solid #4a9ede;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#4a9ede;font-size:11px;">🍳 厨房</div>
+      </div>
+      <div style="color:#888;text-align:center;font-size:10px;">⬆ 小黑 (客厅)  哪吒 (饭厅)</div>
+    </div>
+    <div class="card-body">
+      <h3>A · 2D 俯视地图</h3>
+      <p>像 Stanford AI Town / Stardew Valley，角色在房间地图上移动，能看到谁在哪、在干什么</p>
+      <div class="pros-cons" style="margin-top:8px">
+        <div class="pros"><h4>优</h4><ul><li>最直观，沉浸感最强</li><li>空间感 + 行为都可见</li></ul></div>
+        <div class="cons"><h4>劣</h4><ul><li>开发量最大（地图+精灵图）</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0d0d0d;padding:16px;min-height:160px;display:flex;flex-direction:column;gap:6px;font-family:monospace;font-size:12px;overflow:hidden;">
+      <div style="display:flex;align-items:flex-start;gap:8px;">
+        <div style="background:#e2b04a;border-radius:50%;width:28px;height:28px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;">🐱</div>
+        <div style="background:#1a1a1a;border-radius:8px;padding:8px;color:#ddd;font-size:11px;flex:1;">小黑跑到客厅趴在沙发上，盯着PS5</div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:8px;justify-content:flex-end;">
+        <div style="background:#1a3a5c;border-radius:8px;padding:8px;color:#ddd;font-size:11px;flex:1;text-align:right;">哪吒：小黑你来玩游戏吗？</div>
+        <div style="background:#e2b04a;border-radius:50%;width:28px;height:28px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;">🔱</div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:8px;">
+        <div style="background:#4a9ede;border-radius:50%;width:28px;height:28px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;">🌙</div>
+        <div style="background:#1a1a1a;border-radius:8px;padding:8px;color:#ddd;font-size:11px;flex:1;">无限走进厨房，开始准备年夜饭...</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B · 聊天流 + 行为日志</h3>
+      <p>像微信群聊，对话气泡 + 旁白行为描述，实时滚动，简洁但信息密度高</p>
+      <div class="pros-cons" style="margin-top:8px">
+        <div class="pros"><h4>优</h4><ul><li>开发最快，专注在对话质量</li><li>剧情感强</li></ul></div>
+        <div class="cons"><h4>劣</h4><ul><li>没有空间感</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#111;padding:12px;min-height:160px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div style="background:#1a1a2e;border:1px solid #333;border-radius:6px;padding:8px;font-size:10px;color:#aaa;">
+        <div style="color:#e2b04a;margin-bottom:4px;font-size:11px;">地图视角</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;height:80px;">
+          <div style="background:#16213e;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:16px;">🐱</div>
+          <div style="background:#16213e;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:16px;">🔱</div>
+          <div style="background:#16213e;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:16px;">🌙</div>
+          <div style="background:#16213e;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:16px;">🦌</div>
+        </div>
+      </div>
+      <div style="background:#0d0d0d;border:1px solid #333;border-radius:6px;padding:8px;font-size:10px;color:#aaa;overflow:hidden;">
+        <div style="color:#4a9ede;margin-bottom:4px;font-size:11px;">对话流</div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <div style="background:#1a1a1a;border-radius:4px;padding:4px;font-size:9px;">🐱 小黑盯着PS5...</div>
+          <div style="background:#1a3a5c;border-radius:4px;padding:4px;font-size:9px;">🔱 来玩游戏吗？</div>
+          <div style="background:#1a1a1a;border-radius:4px;padding:4px;font-size:9px;">🌙 无限进厨房...</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C · 双栏：地图 + 对话流</h3>
+      <p>左边显示房间地图和角色位置，右边实时滚动对话和行为，两者联动</p>
+      <div class="pros-cons" style="margin-top:8px">
+        <div class="pros"><h4>优</h4><ul><li>信息最全面，空间+对话都有</li><li>观感最专业</li></ul></div>
+        <div class="cons"><h4>劣</h4><ul><li>开发量中等偏大</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+</div>

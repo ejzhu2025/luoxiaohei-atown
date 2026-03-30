@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<style>
+  body{background:#0e0c0a;margin:0;padding:20px;font-family:'PingFang SC','Microsoft YaHei',monospace;color:#ddd;}
+  h2{color:#e2b04a;margin:0 0 6px;font-size:15px;}
+  p{color:#888;font-size:10px;margin:0 0 16px;}
+  .box{border-radius:6px;padding:10px 14px;}
+  .label{font-size:9px;letter-spacing:.08em;text-transform:uppercase;opacity:.7;margin-bottom:4px;}
+  .title{font-size:12px;font-weight:bold;}
+  .sub{font-size:9px;opacity:.75;margin-top:3px;}
+  .arrow{color:#666;font-size:11px;text-align:center;line-height:1;}
+</style>
+</head>
+<body>
+<h2>系统架构 · 方案 B（并发 tick + Memory Stream）</h2>
+<p>三层结构：模拟引擎 → FastAPI 服务 → 浏览器前端</p>
+
+<svg width="700" height="480" viewBox="0 0 700 480" xmlns="http://www.w3.org/2000/svg" style="display:block;">
+<defs>
+  <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#666"/>
+  </marker>
+  <marker id="arr-gold" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#c8a050"/>
+  </marker>
+  <marker id="arr-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#4a88d0"/>
+  </marker>
+</defs>
+
+<!-- ===== LAYER LABELS ===== -->
+<text x="16" y="46" font-size="9" fill="#555" font-family="monospace">BROWSER</text>
+<text x="16" y="192" font-size="9" fill="#555" font-family="monospace">FASTAPI SERVER</text>
+<text x="16" y="338" font-size="9" fill="#555" font-family="monospace">SIMULATION ENGINE</text>
+
+<!-- ===== LAYER BACKGROUNDS ===== -->
+<rect x="10" y="50" width="680" height="120" rx="8" fill="#1a1a2a" stroke="#2a2a4a" stroke-width="1"/>
+<rect x="10" y="196" width="680" height="120" rx="8" fill="#1a2a1a" stroke="#2a4a2a" stroke-width="1"/>
+<rect x="10" y="342" width="680" height="124" rx="8" fill="#2a1a0a" stroke="#4a3a1a" stroke-width="1"/>
+
+<!-- ===== BROWSER LAYER ===== -->
+<!-- Canvas -->
+<rect x="30" y="66" width="200" height="86" rx="5" fill="#242438" stroke="#4a4a7a" stroke-width="1.5"/>
+<text x="130" y="84" text-anchor="middle" font-size="9" fill="#8888cc" font-family="monospace">HTML Canvas</text>
+<text x="130" y="98" text-anchor="middle" font-size="11" font-weight="bold" fill="#c0c0f0" font-family="PingFang SC,sans-serif">2D 地图渲染</text>
+<text x="130" y="112" text-anchor="middle" font-size="8" fill="#8888aa" font-family="PingFang SC,sans-serif">角色精灵 · 移动动画 · 寻路插值</text>
+<text x="130" y="124" text-anchor="middle" font-size="8" fill="#8888aa" font-family="PingFang SC,sans-serif">房间家具 · 对话气泡 · 时间轴</text>
+<!-- WebSocket client -->
+<rect x="250" y="66" width="160" height="86" rx="5" fill="#242438" stroke="#4a4a7a" stroke-width="1.5"/>
+<text x="330" y="84" text-anchor="middle" font-size="9" fill="#8888cc" font-family="monospace">WebSocket Client</text>
+<text x="330" y="100" text-anchor="middle" font-size="10" font-weight="bold" fill="#c0c0f0" font-family="PingFang SC,sans-serif">实时状态接收</text>
+<text x="330" y="114" text-anchor="middle" font-size="8" fill="#8888aa" font-family="PingFang SC,sans-serif">角色位置帧</text>
+<text x="330" y="126" text-anchor="middle" font-size="8" fill="#8888aa" font-family="PingFang SC,sans-serif">对话事件 · 动作标注</text>
+<!-- Log panel -->
+<rect x="430" y="66" width="240" height="86" rx="5" fill="#242438" stroke="#4a4a7a" stroke-width="1.5"/>
+<text x="550" y="84" text-anchor="middle" font-size="9" fill="#8888cc" font-family="monospace">Log Panel</text>
+<text x="550" y="100" text-anchor="middle" font-size="10" font-weight="bold" fill="#c0c0f0" font-family="PingFang SC,sans-serif">旁白 · 内心独白 · 事件流</text>
+<text x="550" y="114" text-anchor="middle" font-size="8" fill="#8888aa" font-family="PingFang SC,sans-serif">右侧滚动面板</text>
+<text x="550" y="126" text-anchor="middle" font-size="8" fill="#8888aa" font-family="PingFang SC,sans-serif">显示每个角色的思考过程</text>
+
+<!-- ===== FASTAPI LAYER ===== -->
+<!-- WS endpoint -->
+<rect x="30" y="212" width="160" height="86" rx="5" fill="#1a2e1a" stroke="#3a5a3a" stroke-width="1.5"/>
+<text x="110" y="230" text-anchor="middle" font-size="9" fill="#88cc88" font-family="monospace">FastAPI</text>
+<text x="110" y="246" text-anchor="middle" font-size="11" font-weight="bold" fill="#a0e0a0" font-family="PingFang SC,sans-serif">WebSocket 服务</text>
+<text x="110" y="262" text-anchor="middle" font-size="8" fill="#80aa80" font-family="PingFang SC,sans-serif">ws://localhost:8000/ws</text>
+<text x="110" y="276" text-anchor="middle" font-size="8" fill="#80aa80" font-family="PingFang SC,sans-serif">广播 tick 帧给所有客户端</text>
+<!-- Tick scheduler -->
+<rect x="210" y="212" width="180" height="86" rx="5" fill="#1a2e1a" stroke="#3a5a3a" stroke-width="1.5"/>
+<text x="300" y="230" text-anchor="middle" font-size="9" fill="#88cc88" font-family="monospace">Tick Scheduler</text>
+<text x="300" y="246" text-anchor="middle" font-size="11" font-weight="bold" fill="#a0e0a0" font-family="PingFang SC,sans-serif">节拍控制器</text>
+<text x="300" y="262" text-anchor="middle" font-size="8" fill="#80aa80" font-family="PingFang SC,sans-serif">每 4 秒触发一次 tick</text>
+<text x="300" y="276" text-anchor="middle" font-size="8" fill="#80aa80" font-family="PingFang SC,sans-serif">1 tick = 模拟时间 5 分钟</text>
+<!-- State store -->
+<rect x="410" y="212" width="260" height="86" rx="5" fill="#1a2e1a" stroke="#3a5a3a" stroke-width="1.5"/>
+<text x="540" y="230" text-anchor="middle" font-size="9" fill="#88cc88" font-family="monospace">World State</text>
+<text x="540" y="246" text-anchor="middle" font-size="11" font-weight="bold" fill="#a0e0a0" font-family="PingFang SC,sans-serif">世界状态（内存 dict）</text>
+<text x="540" y="262" text-anchor="middle" font-size="8" fill="#80aa80" font-family="PingFang SC,sans-serif">角色位置 · 当前动作 · 时钟</text>
+<text x="540" y="276" text-anchor="middle" font-size="8" fill="#80aa80" font-family="PingFang SC,sans-serif">各房间物品状态 · 事件队列</text>
+
+<!-- ===== SIMULATION LAYER ===== -->
+<!-- Agent Manager -->
+<rect x="30" y="358" width="200" height="92" rx="5" fill="#2e1e0a" stroke="#5a3a1a" stroke-width="1.5"/>
+<text x="130" y="376" text-anchor="middle" font-size="9" fill="#d0a060" font-family="monospace">Agent Manager</text>
+<text x="130" y="393" text-anchor="middle" font-size="11" font-weight="bold" fill="#f0c080" font-family="PingFang SC,sans-serif">角色引擎（×4并发）</text>
+<text x="130" y="409" text-anchor="middle" font-size="8" fill="#c09050" font-family="PingFang SC,sans-serif">asyncio.gather 并发调用 LLM</text>
+<text x="130" y="423" text-anchor="middle" font-size="8" fill="#c09050" font-family="PingFang SC,sans-serif">小黑 · 无限 · 哪吒 · 鹿野</text>
+<text x="130" y="437" text-anchor="middle" font-size="8" fill="#c09050" font-family="PingFang SC,sans-serif">每人独立 Memory Stream</text>
+<!-- Memory -->
+<rect x="250" y="358" width="180" height="92" rx="5" fill="#2e1e0a" stroke="#5a3a1a" stroke-width="1.5"/>
+<text x="340" y="376" text-anchor="middle" font-size="9" fill="#d0a060" font-family="monospace">Memory Stream</text>
+<text x="340" y="393" text-anchor="middle" font-size="11" font-weight="bold" fill="#f0c080" font-family="PingFang SC,sans-serif">记忆流（每角色）</text>
+<text x="340" y="409" text-anchor="middle" font-size="8" fill="#c09050" font-family="PingFang SC,sans-serif">最近 20 条事件列表</text>
+<text x="340" y="423" text-anchor="middle" font-size="8" fill="#c09050" font-family="PingFang SC,sans-serif">[ {time, event, importance} ]</text>
+<text x="340" y="437" text-anchor="middle" font-size="8" fill="#c09050" font-family="PingFang SC,sans-serif">注入 LLM 上下文</text>
+<!-- Pathfinding -->
+<rect x="450" y="358" width="170" height="92" rx="5" fill="#2e1e0a" stroke="#5a3a1a" stroke-width="1.5"/>
+<text x="535" y="376" text-anchor="middle" font-size="9" fill="#d0a060" font-family="monospace">Pathfinder</text>
+<text x="535" y="393" text-anchor="middle" font-size="11" font-weight="bold" fill="#f0c080" font-family="PingFang SC,sans-serif">A* 寻路</text>
+<text x="535" y="409" text-anchor="middle" font-size="8" fill="#c09050" font-family="PingFang SC,sans-serif">房间网格图 + 门节点</text>
+<text x="535" y="423" text-anchor="middle" font-size="8" fill="#c09050" font-family="PingFang SC,sans-serif">LLM 给目标房间</text>
+<text x="535" y="437" text-anchor="middle" font-size="8" fill="#c09050" font-family="PingFang SC,sans-serif">Pathfinder 算路径帧序列</text>
+<!-- Claude API (external) -->
+<rect x="630" y="358" width="60" height="92" rx="5" fill="#2a1a2a" stroke="#5a3a5a" stroke-width="1.5" stroke-dasharray="4,2"/>
+<text x="660" y="393" text-anchor="middle" font-size="8" fill="#c090c0" font-family="monospace">Claude</text>
+<text x="660" y="407" text-anchor="middle" font-size="8" fill="#c090c0" font-family="monospace">API</text>
+<text x="660" y="421" text-anchor="middle" font-size="7" fill="#9a709a" font-family="monospace">sonnet</text>
+<text x="660" y="433" text-anchor="middle" font-size="7" fill="#9a709a" font-family="monospace">-4-6</text>
+
+<!-- ===== ARROWS ===== -->
+<!-- WS client ↔ FastAPI -->
+<line x1="330" y1="152" x2="330" y2="210" stroke="#4a4a7a" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arr)"/>
+<text x="344" y="184" font-size="8" fill="#6666aa" font-family="monospace">WebSocket</text>
+
+<!-- Tick → AgentManager -->
+<line x1="300" y1="298" x2="200" y2="356" stroke="#3a5a3a" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="220" y="332" font-size="8" fill="#60aa60" font-family="monospace">trigger tick</text>
+
+<!-- AgentManager → Memory -->
+<line x1="230" y1="404" x2="248" y2="404" stroke="#c8a050" stroke-width="1.5" marker-end="url(#arr-gold)"/>
+
+<!-- AgentManager → Claude API -->
+<line x1="450" y1="414" x2="628" y2="414" stroke="#c090c0" stroke-width="1.5" stroke-dasharray="3,2" marker-end="url(#arr)"/>
+<text x="508" y="410" font-size="8" fill="#c090c0" font-family="monospace">prompt × 4 并发</text>
+
+<!-- AgentManager → Pathfinder -->
+<line x1="430" y1="395" x2="448" y2="395" stroke="#c8a050" stroke-width="1.5" marker-end="url(#arr-gold)"/>
+<text x="432" y="390" font-size="7" fill="#c8a050" font-family="monospace">target room</text>
+
+<!-- Pathfinder → WorldState -->
+<line x1="535" y1="356" x2="535" y2="300" stroke="#4a88d0" stroke-width="1.5" marker-end="url(#arr-blue)"/>
+<text x="540" y="332" font-size="8" fill="#4a88d0" font-family="monospace">path frames</text>
+
+<!-- WorldState → WS -->
+<line x1="450" y1="256" x2="192" y2="256" stroke="#4a88d0" stroke-width="1.5" marker-end="url(#arr-blue)"/>
+<text x="300" y="250" font-size="8" fill="#4a88d0" font-family="monospace">broadcast state</text>
+
+<!-- Canvas ↔ WS client -->
+<line x1="232" y1="109" x2="248" y2="109" stroke="#6666aa" stroke-width="1" marker-end="url(#arr)"/>
+
+</svg>
+
+<div style="display:flex;gap:24px;margin-top:12px;flex-wrap:wrap;">
+  <div style="background:#1a1a2a;border:1px solid #3a3a5a;border-radius:5px;padding:10px 14px;font-size:10px;color:#aaa;">
+    <div style="color:#c0c0f0;font-weight:bold;margin-bottom:6px;">⏱ 一个 Tick 的流程</div>
+    <div>1. Scheduler 触发（每 4 秒）</div>
+    <div>2. 读取 World State → 构建 4 个 prompt</div>
+    <div>3. <span style="color:#e0b060">asyncio.gather</span> 并发调用 Claude × 4</div>
+    <div>4. 解析返回：目标房间 + 对话文本 + 内心独白</div>
+    <div>5. Pathfinder 计算移动路径帧</div>
+    <div>6. 更新 World State → WebSocket 广播</div>
+    <div>7. 前端 Canvas 播放移动动画 + 弹出气泡</div>
+  </div>
+  <div style="background:#1a2e1a;border:1px solid #3a5a3a;border-radius:5px;padding:10px 14px;font-size:10px;color:#aaa;">
+    <div style="color:#a0e0a0;font-weight:bold;margin-bottom:6px;">📦 LLM 返回格式（JSON）</div>
+    <div style="color:#80c080;font-family:monospace;font-size:9px;line-height:1.6;">
+      {<br/>
+      &nbsp;&nbsp;"思考": "无限在厨房忙了很久，<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;该去叫大家吃饭了",<br/>
+      &nbsp;&nbsp;"目标房间": "餐厅",<br/>
+      &nbsp;&nbsp;"动作": "走向餐厅，招呼众人",<br/>
+      &nbsp;&nbsp;"对话": "饭好了！大家快来！",<br/>
+      &nbsp;&nbsp;"情绪": "开心"<br/>
+      }
+    </div>
+  </div>
+</div>
+</body>
+</html>
