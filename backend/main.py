@@ -80,7 +80,14 @@ async def websocket_endpoint(websocket: WebSocket):
 
     try:
         while True:
-            await websocket.receive_text()
+            raw = await websocket.receive_text()
+            try:
+                msg = json.loads(raw)
+                if msg.get("type") == "force_tick" and scheduler:
+                    scheduler.force_tick()
+                    logger.info("Force tick triggered by client")
+            except Exception:
+                pass
     except WebSocketDisconnect:
         connected_clients.discard(websocket)
         logger.info(f"Client disconnected ({len(connected_clients)} total)")

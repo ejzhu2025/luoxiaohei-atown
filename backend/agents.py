@@ -10,6 +10,19 @@ import anthropic
 
 from backend.characters import CharacterConfig
 
+# Room props — tells each agent what they can interact with
+ROOM_PROPS: dict[str, str] = {
+    "院子":   "竹林、石板路、春节红灯笼、鞭炮（未点燃）",
+    "厨房":   "灶台（两个灶眼）、岛台、悬挂锅具、冰箱、食材（红烧肉、饺子皮、蔬菜）",
+    "餐厅":   "大圆桌、火锅底座（可开火）、4把椅子、酒柜（白酒/红酒/饮料）",
+    "游戏室": "双显示器电竞桌、VR头显、电竞椅、Nintendo Switch、游戏手柄、零食",
+    "衣帽间": "哪吒战袍展示架、球鞋墙（数十双）、全身镜",
+    "客厅":   "65寸TV、PS5主机（开着）、L形沙发、懒人沙发、茶几、遥控器",
+    "次阳台": "藤椅两把、大型盆栽、城市夜景、春节灯笼、微风",
+    "卧室":   "特大号床、智能控制面板、台灯",
+    "卫生间": "独立浴缸、淋浴间、马桶",
+}
+
 
 @dataclass
 class MemoryEntry:
@@ -69,6 +82,8 @@ class Agent:
             f"  [{m.time}] {m.event}" for m in recent
         ) if recent else "  （暂无记忆）"
 
+        room_props = ROOM_PROPS.get(self.current_room, "")
+
         return f"""你是{self.name}。
 
 【性格】{self.core_traits}
@@ -80,6 +95,7 @@ class Agent:
 
 【当前状态】
 - 当前位置：{self.current_room}
+- 房间里有这些东西可以使用：{room_props}
 - 心情：{self.mood}
 - 当前目标：{self.current_goal}
 - 房间内还有：{others_str}

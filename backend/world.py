@@ -97,6 +97,7 @@ class TickScheduler:
         self.broadcast = broadcast
         self.clock = SimClock()
         self._running = False
+        self._force_tick = asyncio.Event()  # set this to skip the sleep
 
     async def run(self) -> None:
         self._running = True
@@ -170,10 +171,19 @@ class TickScheduler:
                 "moods": dict(self.world.agent_moods),
             })
 
-            await asyncio.sleep(self.TICK_REAL_SECONDS)
+            # Wait for timer OR manual force-tick signal
+            self._force_tick.clear()
+            try:
+                await asyncio.wait_for(self._force_tick.wait(), timeout=self.TICK_REAL_SECONDS)
+            except asyncio.TimeoutError:
+                pass  # normal timer expiry
 
         await self.broadcast({"type": "simulation_end", "sim_time": self.clock.current})
         self._running = False
+
+    def force_tick(self) -> None:
+        """Skip the current sleep and fire the next tick immediately."""
+        self._force_tick.set()
 
     def stop(self) -> None:
         self._running = False

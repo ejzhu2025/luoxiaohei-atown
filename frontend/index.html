@@ -27,6 +27,12 @@
   #header h1 { font-size: 15px; color: #e2b04a; letter-spacing: 0.05em; }
   #sim-time { font-size: 14px; color: #c8a060; font-variant-numeric: tabular-nums; font-weight: bold; }
   #status { font-size: 11px; color: #806040; margin-left: auto; }
+  #btn-tick {
+    background: #2a1c08; border: 1px solid #c49840; color: #e2b04a;
+    padding: 3px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;
+    font-family: inherit;
+  }
+  #btn-tick:hover { background: #3a2c10; }
   #main {
     display: flex;
     flex: 1;
@@ -68,6 +74,7 @@
 <div id="header">
   <h1>罗小黑 AI Town · 哪吒家除夕夜年夜饭</h1>
   <div id="sim-time">18:00</div>
+  <button id="btn-tick" title="跳过等待，立刻进入下一个tick">快进</button>
   <div id="status">连接中...</div>
 </div>
 <div id="main">
@@ -215,9 +222,8 @@ function drawFloorplan() {
   line(545, 100, 558, 100);
   line(636, 100, 726, 100);
 
-  // y=262 horizontal
-  line(14, 262, 72, 262);
-  line(146, 262, 726, 262);
+  // y=262 horizontal — no door between 厨房 and 衣帽间 (solid wall)
+  line(14, 262, 726, 262);
 
   // y=424 horizontal
   line(14, 424, 726, 424);
@@ -656,16 +662,19 @@ function addLog(html) {
 }
 
 // ─── WebSocket ────────────────────────────────────────────────────────────────
+let activeWs = null;
+
 function connect() {
   const ws = new WebSocket(`ws://${location.host}/ws`);
+  activeWs = ws;
 
   ws.onopen = () => { statusEl.textContent = '已连接'; };
   ws.onclose = () => {
+    activeWs = null;
     statusEl.textContent = '已断开，5秒后重连...';
     setTimeout(connect, 5000);
   };
   ws.onerror = () => { statusEl.textContent = '连接错误'; };
-
   ws.onmessage = ({ data }) => {
     try { handle(JSON.parse(data)); } catch (e) { console.error(e); }
   };
@@ -737,6 +746,12 @@ function handle(ev) {
       break;
   }
 }
+
+document.getElementById('btn-tick').addEventListener('click', () => {
+  if (activeWs && activeWs.readyState === WebSocket.OPEN) {
+    activeWs.send(JSON.stringify({ type: 'force_tick' }));
+  }
+});
 
 connect();
 </script>

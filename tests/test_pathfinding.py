@@ -13,9 +13,15 @@ def test_adjacent_rooms_direct_path():
 
 
 def test_multi_hop_path():
-    # 卫生间 → 衣帽间: 卫生间→卧室→衣帽间
+    # 卫生间 → 衣帽间: 卫生间→卧室→衣帽间 (direct, since 衣帽间 now connects to 卧室 not 厨房)
     path = find_path("卫生间", "衣帽间")
     assert path == ["卫生间", "卧室", "衣帽间"]
+
+def test_kitchen_not_connected_to_wardrobe():
+    # 厨房 and 衣帽间 are no longer directly connected
+    path = find_path("厨房", "衣帽间")
+    assert "衣帽间" in path
+    assert len(path) > 2  # must go through at least one intermediate room
 
 
 def test_long_path():
