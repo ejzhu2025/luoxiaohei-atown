@@ -24,7 +24,10 @@ class Agent:
     def __init__(self, config: CharacterConfig):
         self.name = config.name
         self.color = config.color
-        self.personality = config.personality
+        self.core_traits = config.core_traits
+        self.relationships = config.relationships
+        self.speech_style = config.speech_style
+        self.taboos = config.taboos
         self.current_room: str = config.initial_room
         self.mood: str = config.initial_mood
         self.current_goal: str = config.initial_goal
@@ -65,7 +68,12 @@ class Agent:
             f"  [{m.time}] {m.event}" for m in recent
         ) if recent else "  （暂无记忆）"
 
-        return f"""{self.personality}
+        return f"""你是{self.name}。
+
+【性格】{self.core_traits}
+【关系】{self.relationships}
+【说话风格】{self.speech_style}
+【禁忌】{self.taboos}
 
 现在是除夕夜 {sim_time}，你在哪吒的豪华大平层。
 

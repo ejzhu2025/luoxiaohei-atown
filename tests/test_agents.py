@@ -14,6 +14,9 @@ def test_agent_initial_state():
     assert agent.current_room == "餐厅"
     assert agent.mood == "期待"
     assert agent.memories == []
+    assert agent.core_traits
+    assert agent.speech_style
+    assert agent.taboos
 
 
 def test_add_memory_stores_entry():
