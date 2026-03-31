@@ -75,6 +75,7 @@
   <h1>罗小黑 AI Town · 哪吒家除夕夜年夜饭</h1>
   <div id="sim-time">18:00</div>
   <button id="btn-tick" title="跳过等待，立刻进入下一个tick">快进</button>
+  <button id="btn-pause" title="暂停/恢复时间轴">暂停</button>
   <div id="status">连接中...</div>
 </div>
 <div id="main">
@@ -225,13 +226,14 @@ function drawFloorplan() {
   // y=262 horizontal — no door between 厨房 and 衣帽间 (solid wall)
   line(14, 262, 726, 262);
 
-  // y=424 horizontal
-  line(14, 424, 726, 424);
+  // y=424 horizontal — gaps for 卧室↔衣帽间 (x70-134) and 卫生间↔客厅 (x430-494)
+  line(14, 424, 70, 424);
+  line(134, 424, 430, 424);
+  line(494, 424, 726, 424);
 
   // x=190 vertical (y=100→424)
   line(190, 100, 190, 142);
-  line(190, 208, 190, 300);
-  line(190, 368, 190, 424);
+  line(190, 208, 190, 424);  // 衣帽间↔客厅 已封墙
 
   // x=545 vertical (y=100→424)
   line(545, 100, 545, 134);
@@ -245,8 +247,9 @@ function drawFloorplan() {
   // Swing door arcs
   ctx.strokeStyle = '#7a5030'; ctx.lineWidth = 1.5;
   arc(190, 142, 66, 0, Math.PI / 2);       // 厨房→餐厅
-  arc(190, 300, 68, 0, Math.PI / 2);       // 衣帽间→客厅
+  arc(70, 424, 64, 0, Math.PI / 2);         // 衣帽间↔卧室（向下开）
   arc(390, 554, 66, -Math.PI / 2, 0);      // 卧室→卫生间
+  slidingDoorH(430, 424, 64);              // 卫生间↔客厅（推拉门）
 
   // Sliding doors (Tang lattice)
   slidingDoorH(306, 100, 134);             // 院子↔餐厅
@@ -772,6 +775,12 @@ function handle(ev) {
       break;
     }
 
+    case 'narrative_event': {
+      const { sim_time, description } = ev;
+      addLog(`<span style="color:#f0c040;font-weight:bold">[${sim_time}] ★ ${description}</span>`);
+      break;
+    }
+
     case 'agent_reflection': {
       const { name, insights, sim_time } = ev;
       const color = CHAR_COLORS[name] || '#aaa';
@@ -799,6 +808,16 @@ document.getElementById('btn-tick').addEventListener('click', () => {
   if (activeWs && activeWs.readyState === WebSocket.OPEN) {
     activeWs.send(JSON.stringify({ type: 'force_tick' }));
   }
+});
+
+let _paused = false;
+const btnPause = document.getElementById('btn-pause');
+btnPause.addEventListener('click', () => {
+  if (!activeWs || activeWs.readyState !== WebSocket.OPEN) return;
+  _paused = !_paused;
+  activeWs.send(JSON.stringify({ type: _paused ? 'pause' : 'resume' }));
+  btnPause.textContent = _paused ? '继续' : '暂停';
+  btnPause.style.background = _paused ? '#7a3030' : '';
 });
 
 connect();

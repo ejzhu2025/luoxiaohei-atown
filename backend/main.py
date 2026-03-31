@@ -86,6 +86,14 @@ async def websocket_endpoint(websocket: WebSocket):
                 if msg.get("type") == "force_tick" and scheduler:
                     scheduler.force_tick()
                     logger.info("Force tick triggered by client")
+                elif msg.get("type") == "pause" and scheduler:
+                    scheduler.pause()
+                    logger.info("Simulation paused")
+                    await websocket.send_text(json.dumps({"type": "paused"}, ensure_ascii=False))
+                elif msg.get("type") == "resume" and scheduler:
+                    scheduler.resume()
+                    logger.info("Simulation resumed")
+                    await websocket.send_text(json.dumps({"type": "resumed"}, ensure_ascii=False))
             except Exception:
                 pass
     except WebSocketDisconnect:
