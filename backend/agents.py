@@ -11,7 +11,7 @@ import anthropic
 
 from backend.characters import CharacterConfig, WORLD_BACKGROUND
 
-_MODEL = "claude-sonnet-4-6"
+_MODEL = "claude-haiku-4-5-20251001"
 
 # 房间道具表 — 每个房间里可交互的物品描述
 # 这些内容会注入到 build_prompt() 中，让 LLM 知道当前房间有什么可用
@@ -151,7 +151,7 @@ class Agent:
 
 【性格】{self.core_traits}
 
-今晚是除夕夜18:00-23:00，你在哪吒家过年夜饭。其他人有：无限、哪吒、鹿野（或小黑，取决于你是谁）。
+今晚是除夕夜19:00-24:00，你在哪吒家过年夜饭，零点一起迎新年。其他人有：无限、哪吒、鹿野（或小黑，取决于你是谁）。
 
 请为自己制定今晚的大致心愿计划（3-5件想做或想发生的事），要符合你的性格。
 只回复JSON数组，格式：["计划1", "计划2", ...]
@@ -227,6 +227,7 @@ class Agent:
         object_states: dict[str, dict[str, str]] = world_context.get("object_states", {})
         recent_event: str = world_context.get("recent_event", "")
         recent_dialogue: list[tuple[str, str, str]] = world_context.get("recent_dialogue", [])
+        schedule_hint: str = world_context.get("schedule_hints", {}).get(self.name, "")
 
         # 当前房间中的其他人
         others_here = [n for n in room_occupants.get(self.current_room, []) if n != self.name]
@@ -276,7 +277,7 @@ class Agent:
 【说话风格】{self.speech_style}
 【禁忌】{self.taboos}
 
-现在是除夕夜 {sim_time}，你在哪吒的豪华大平层。
+现在是除夕夜 {sim_time}，你在哪吒的豪华大平层，今晚过完零点再散。
 
 【今晚的计划】
 {plan_str}
@@ -287,6 +288,7 @@ class Agent:
 - 心情：{self.mood}
 - 当前目标：{self.current_goal}
 - 房间内还有：{others_str}
+{f"- 这个时段你通常应该在：{schedule_hint}（除非有明确叙事理由，请待在这里或附近）" if schedule_hint else ""}
 
 【各人位置】
 {location_overview}

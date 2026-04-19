@@ -27,12 +27,30 @@
   #header h1 { font-size: 15px; color: #e2b04a; letter-spacing: 0.05em; }
   #sim-time { font-size: 14px; color: #c8a060; font-variant-numeric: tabular-nums; font-weight: bold; }
   #status { font-size: 11px; color: #806040; margin-left: auto; }
-  #btn-tick {
+  #btn-tick, #btn-news {
     background: #2a1c08; border: 1px solid #c49840; color: #e2b04a;
     padding: 3px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;
     font-family: inherit;
   }
-  #btn-tick:hover { background: #3a2c10; }
+  #btn-tick:hover, #btn-news:hover { background: #3a2c10; }
+  #btn-news.loading { opacity: 0.5; cursor: default; }
+  #inject-bar {
+    display: flex; gap: 6px; padding: 6px 10px;
+    background: #100e08; border-top: 1px solid #2a1e0a; flex-shrink: 0;
+  }
+  #inject-input {
+    flex: 1; background: #1a1408; border: 1px solid #3a2a10; color: #e2d4b0;
+    border-radius: 4px; padding: 4px 8px; font-size: 12px; font-family: inherit;
+    outline: none;
+  }
+  #inject-input:focus { border-color: #c49840; }
+  #inject-input::placeholder { color: #604828; }
+  #btn-inject {
+    background: #2a1c08; border: 1px solid #c49840; color: #e2b04a;
+    padding: 4px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;
+    font-family: inherit; white-space: nowrap;
+  }
+  #btn-inject:hover { background: #3a2c10; }
   #main {
     display: flex;
     flex: 1;
@@ -45,7 +63,65 @@
     background: #181410;
     overflow: hidden;
   }
-  canvas { display: block; }
+  canvas { display: block; image-rendering: pixelated; }
+  #label-overlay {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 2;
+  }
+  #bubble-overlay {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 3;
+  }
+  .html-bubble {
+    position: absolute;
+    background: rgba(18,12,4,0.92);
+    border: 1.5px solid;
+    border-radius: 6px;
+    padding: 5px 9px 5px 9px;
+    max-width: 160px;
+    transform: translate(-50%, calc(-100% - 10px));
+    transition: opacity 0.2s;
+  }
+  .bubble-text {
+    font: 12px 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    color: #e8d090;
+    line-height: 1.5;
+    white-space: normal;
+    word-break: break-all;
+  }
+  .bubble-tail {
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 8px solid rgba(18,12,4,0.92);
+  }
+  .char-label {
+    position: absolute;
+    transform: translate(-50%, 0);
+    text-align: center;
+    line-height: 1.3;
+  }
+  .char-name {
+    font: bold 11px 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+    white-space: nowrap;
+  }
+  .char-mood {
+    font: 10px 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    opacity: 0.9;
+    text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+    white-space: nowrap;
+  }
   #log-panel {
     flex: 1;
     overflow-y: auto;
@@ -76,29 +152,39 @@
   <div id="sim-time">18:00</div>
   <button id="btn-tick" title="跳过等待，立刻进入下一个tick">快进</button>
   <button id="btn-pause" title="暂停/恢复时间轴">暂停</button>
+  <button id="btn-news" title="抓取今日新闻并映射为公寓事件">今日新闻</button>
   <div id="status">连接中...</div>
 </div>
 <div id="main">
   <div id="canvas-wrap">
     <canvas id="canvas"></canvas>
+    <div id="label-overlay"></div>
+    <div id="bubble-overlay"></div>
   </div>
-  <div id="log-panel"></div>
+  <div style="display:flex;flex-direction:column;flex:1;min-width:260px;overflow:hidden;">
+    <div id="log-panel" style="flex:1;min-width:0;"></div>
+    <div id="inject-bar">
+      <input id="inject-input" type="text" placeholder="输入事件注入模拟（如：小黑切菜划伤了手）" maxlength="80"/>
+      <button id="btn-inject">注入</button>
+    </div>
+  </div>
 </div>
 
 <script>
-// ─── Room layout (mirroring floorplan-v5 SVG grid) ───────────────────────────
-// Grid: 740×600, outer walls x=14/726, y=14/586
-// Rows: y=100/262/424/586, Cols: x=14/190/545/726
+// ─── Room layout (style-e pixel art layout) ───────────────────────────────────
+// Grid: 800×520, Row0 y=0-180, Row1 y=180-360, Row2 y=360-520
 const ROOMS = {
-  '院子':   { x: 14,  y: 14,  w: 712, h: 86,  cx: 370, cy: 57,  fill: '#2a3828' },
-  '厨房':   { x: 14,  y: 100, w: 176, h: 162, cx: 102, cy: 181, fill: '#282e38' },
-  '餐厅':   { x: 190, y: 100, w: 355, h: 162, cx: 367, cy: 181, fill: '#2e2818' },
-  '游戏室': { x: 545, y: 100, w: 181, h: 162, cx: 635, cy: 181, fill: '#28243a' },
-  '衣帽间': { x: 14,  y: 262, w: 176, h: 162, cx: 102, cy: 343, fill: '#2e2820' },
-  '客厅':   { x: 190, y: 262, w: 355, h: 162, cx: 367, cy: 343, fill: '#2e2818' },
-  '次阳台': { x: 545, y: 262, w: 181, h: 162, cx: 635, cy: 343, fill: '#1e2e22' },
-  '卧室':   { x: 14,  y: 424, w: 376, h: 162, cx: 202, cy: 505, fill: '#20282e' },
-  '卫生间': { x: 390, y: 424, w: 336, h: 162, cx: 558, cy: 505, fill: '#1e2a28' },
+  '院子':   { x: 0,   y: 0,   w: 200, h: 180, cx: 100, cy: 90  },
+  '厨房':   { x: 200, y: 0,   w: 200, h: 180, cx: 300, cy: 90  },
+  '餐厅':   { x: 400, y: 0,   w: 200, h: 180, cx: 500, cy: 90  },
+  '游戏室': { x: 600, y: 0,   w: 200, h: 180, cx: 700, cy: 90  },
+  '衣帽间': { x: 0,   y: 180, w: 200, h: 180, cx: 100, cy: 270 },
+  '客厅':   { x: 200, y: 180, w: 400, h: 180, cx: 400, cy: 270 },
+  '次阳台': { x: 600, y: 180, w: 200, h: 180, cx: 700, cy: 270 },
+  '卧室':   { x: 0,   y: 360, w: 250, h: 160, cx: 125, cy: 440 },
+  '主卫':   { x: 250, y: 360, w: 180, h: 160, cx: 340, cy: 440 },
+  '客卫':   { x: 430, y: 360, w: 120, h: 160, cx: 490, cy: 440 },
+  '卫生间': { x: 250, y: 360, w: 300, h: 160, cx: 400, cy: 440 }, // compat alias
 };
 
 const CHAR_COLORS = {
@@ -116,18 +202,79 @@ const BUBBLE_DURATION = 4500;
 const sprites = {};
 const INITIAL_ROOMS = { '小黑': '餐厅', '无限': '厨房', '哪吒': '客厅', '鹿野': '次阳台' };
 
-function roomOffset(name) {
-  const idx = NAMES.indexOf(name);
-  const offs = [{ x: -20, y: -16 }, { x: 20, y: -16 }, { x: -20, y: 16 }, { x: 20, y: 16 }];
-  return offs[idx] || { x: 0, y: 0 };
+// Fixed seat assignments per room per character (dx/dy from room center)
+// Derived from actual furniture pixel positions in drawFloorplan()
+const ROOM_SEATS = {
+  // 圆形餐桌中心 (500,90) r≈52，四个方位坐席
+  // room center cx=500 cy=90
+  '餐厅': {
+    '小黑': { dx:   0, dy: -62 },  // 北 → (500, 28)
+    '无限': { dx:   0, dy:  62 },  // 南 → (500, 152)
+    '哪吒': { dx: -65, dy:   0 },  // 西 → (435, 90)
+    '鹿野': { dx:  65, dy:   0 },  // 东 → (565, 90)
+  },
+  // 客厅沙发：横沙发 sofa(204,183,180,42,'top') 坐区 y≈215
+  //           竖沙发 sofa(388,183,44,134,'right') 坐区 x≈402
+  // room center cx=400 cy=270
+  '客厅': {
+    '小黑': { dx: -155, dy: -55 },  // 横沙发左: (245, 215)
+    '无限': { dx:  -55, dy: -55 },  // 横沙发右: (345, 215)
+    '哪吒': { dx:    2, dy: -52 },  // 竖沙发上: (402, 218)
+    '鹿野': { dx:    2, dy:  25 },  // 竖沙发下: (402, 295)
+  },
+  // 次阳台两张躺椅：lounger(608,292,46,52) lounger(744,292,46,52)
+  // room center cx=700 cy=270
+  '次阳台': {
+    '小黑': { dx: -69, dy:  48 },  // 左躺椅: (631, 318)
+    '无限': { dx:  67, dy:  48 },  // 右躺椅: (767, 318)
+    '哪吒': { dx: -69, dy:  48 },
+    '鹿野': { dx:  67, dy:  48 },
+  },
+};
+
+// Spread characters in a room; use fixed seats if defined, else dynamic slots
+function rebalanceRoom(roomName) {
+  const room = ROOMS[roomName];
+  if (!room) return;
+  const inRoom = NAMES.filter(n => sprites[n] && sprites[n].room === roomName);
+  const fixed = ROOM_SEATS[roomName];
+  if (fixed) {
+    inRoom.forEach(name => {
+      const s = fixed[name] || { dx: 0, dy: 0 };
+      sprites[name].tx = room.cx + s.dx;
+      sprites[name].ty = room.cy + s.dy;
+    });
+    return;
+  }
+  // Fallback: seat around table dynamically
+  const n = inRoom.length;
+  const slots = [
+    { dx:   0, dy: -45 },
+    { dx:   0, dy:  45 },
+    { dx: -55, dy:   0 },
+    { dx:  55, dy:   0 },
+  ];
+  const used = n === 1 ? [{ dx: 0, dy: 0 }]
+    : n === 2 ? [slots[0], slots[1]]
+    : n === 3 ? [slots[0], slots[2], slots[3]]
+    : slots;
+  inRoom.forEach((name, i) => {
+    const s = used[i] || { dx: 0, dy: 0 };
+    sprites[name].tx = room.cx + s.dx;
+    sprites[name].ty = room.cy + s.dy;
+  });
 }
 
 for (const name of NAMES) {
   const room = INITIAL_ROOMS[name];
   const r = ROOMS[room];
-  const off = roomOffset(name);
-  sprites[name] = { x: r.cx + off.x, y: r.cy + off.y, tx: r.cx + off.x, ty: r.cy + off.y, room, mood: '' };
+  sprites[name] = { x: r.cx, y: r.cy, tx: r.cx, ty: r.cy, room, mood: '' };
 }
+// Spread initial positions
+const initialRoomNames = [...new Set(Object.values(INITIAL_ROOMS))];
+initialRoomNames.forEach(rebalanceRoom);
+// Snap to target immediately
+for (const name of NAMES) { sprites[name].x = sprites[name].tx; sprites[name].y = sprites[name].ty; }
 
 // ─── Speech bubbles ───────────────────────────────────────────────────────────
 const bubbles = []; // { name, text, bx, by, expiry }
@@ -135,32 +282,27 @@ const bubbles = []; // { name, text, bx, by, expiry }
 // ─── Canvas setup ─────────────────────────────────────────────────────────────
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
 
-const CANVAS_W = 740;
-const CANVAS_H = 600;
+const CANVAS_W = 800;
+const CANVAS_H = 520;
 
+let currentScale = 1;
 function resizeCanvas() {
   const wrap = document.getElementById('canvas-wrap');
   const avail = Math.min(window.innerHeight - 40, window.innerWidth - 260);
-  const scale = Math.min(1, avail / CANVAS_H);
+  currentScale = Math.min(1, avail / CANVAS_H);
   canvas.width = CANVAS_W;
   canvas.height = CANVAS_H;
-  canvas.style.width = (CANVAS_W * scale) + 'px';
-  canvas.style.height = (CANVAS_H * scale) + 'px';
-  wrap.style.width = (CANVAS_W * scale) + 'px';
+  canvas.style.width = (CANVAS_W * currentScale) + 'px';
+  canvas.style.height = (CANVAS_H * currentScale) + 'px';
+  wrap.style.width = (CANVAS_W * currentScale) + 'px';
 }
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
 // ─── Drawing helpers ──────────────────────────────────────────────────────────
-function line(x1, y1, x2, y2) {
-  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-}
-
-function arc(cx, cy, r, a0, a1) {
-  ctx.beginPath(); ctx.arc(cx, cy, r, a0, a1); ctx.stroke();
-}
-
+// roundRect creates a path only (used by drawBubbles which fills/strokes separately)
 function roundRect(x, y, w, h, r) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -171,360 +313,323 @@ function roundRect(x, y, w, h, r) {
   ctx.closePath();
 }
 
-function slidingDoorH(x, y, w) {
-  // Horizontal Tang-style lattice
-  ctx.save();
-  ctx.strokeStyle = '#c49858'; ctx.lineWidth = 1;
-  for (let i = 0; i <= w; i += 7) line(x + i, y - 3, x + i, y + 3);
-  line(x, y, x + w, y);
-  ctx.restore();
+// ─── Style-E pixel art helpers ────────────────────────────────────────────────
+const P={
+  bg:'#070710',
+  wall:'#141428',wallH:'#1e1e38',wallL:'#0a0a1a',
+  door:'#d4a830',doorS:'#8a6010',doorH:'#f0c850',
+  f_yard:'#1c3018',f_kit:'#281c18',f_din:'#181c28',
+  f_game:'#201e14',f_ward:'#182024',f_liv:'#221820',
+  f_bal:'#182420',f_bed:'#14162a',f_mbath:'#1a2828',f_gbath:'#182222',
+  wd:'#3a2010',wd2:'#5a3a18',wd3:'#8a6030',wdH:'#c0903a',wdL:'#241408',
+  s1:'#5a2848',s2:'#7a3860',s3:'#9a5880',sH:'#c07898',
+  b1:'#20204a',b2:'#303068',b3:'#5050a0',bH:'#8888cc',
+  pil:'#d8d4ec',pilH:'#f0eeff',
+  cnt:'#3a2a1a',cnt2:'#5a4028',cntH:'#8a6840',
+  stv:'#1a1a1a',stv2:'#282828',fire:'#ff4400',fire2:'#ff8800',
+  frig:'#2a3a3a',frig2:'#3a5050',frigH:'#6a8888',
+  snk:'#1a3030',snk2:'#2a5050',wtr:'#3a7888',
+  tbl:'#201828',tblE:'#3a2840',tblH:'#5a4060',
+  hp:'#1a1212',hpR:'#cc1800',hpG:'#ff4400',
+  plt:'#d8d8d8',pltI:'#b8b8b8',chop:'#7a4a18',
+  rug1:'#2a1020',rug2:'#3a1830',rugP:'rgba(180,60,120,0.25)',
+  tv1:'#0a0a0a',tv2:'#141414',tvS:'#0a1a2a',tvG:'#1a3a5a',
+  wc1:'#c0c8c0',wc2:'#a0b0a0',wcI:'#78909a',
+  bt1:'#ccd4d0',bt2:'#a0b8b4',btW:'#3a6878',
+  gr1:'#1a3a14',gr2:'#2a5a1e',gr3:'#3a7a28',gr4:'#5a9a40',
+  pot:'#6a3a1a',pot2:'#8a5a30',
+  st1:'#2a2a30',st2:'#3a3a42',st3:'#5a5a62',
+  lan:'#cc1800',lan2:'#ee3a00',lanH:'#ff7a00',
+  label:'#e8be28',
+  handle:'#a07030',
+};
+const r=(x,y,w,h,c)=>{if(w>0&&h>0){ctx.fillStyle=c;ctx.fillRect(x,y,w,h);}};
+const s=(x,y,w,h,c,lw=1)=>{ctx.strokeStyle=c;ctx.lineWidth=lw;ctx.strokeRect(x+.5,y+.5,w-1,h-1);};
+const ci=(x,y,rad,c)=>{ctx.fillStyle=c;ctx.beginPath();ctx.arc(x,y,rad,0,Math.PI*2);ctx.fill();};
+const ri=(x,y,rad,c,lw=1.5)=>{ctx.strokeStyle=c;ctx.lineWidth=lw;ctx.beginPath();ctx.arc(x,y,rad,0,Math.PI*2);ctx.stroke();};
+const ln=(x1,y1,x2,y2,c,lw=1)=>{ctx.strokeStyle=c;ctx.lineWidth=lw;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();};
+function glowC(x,y,rad,c){
+  const g=ctx.createRadialGradient(x,y,0,x,y,rad);
+  g.addColorStop(0,c);g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,rad,0,Math.PI*2);ctx.fill();
+}
+function rrect(x,y,w,h,rad,c){
+  ctx.fillStyle=c;ctx.beginPath();
+  ctx.moveTo(x+rad,y);ctx.lineTo(x+w-rad,y);ctx.quadraticCurveTo(x+w,y,x+w,y+rad);
+  ctx.lineTo(x+w,y+h-rad);ctx.quadraticCurveTo(x+w,y+h,x+w-rad,y+h);
+  ctx.lineTo(x+rad,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-rad);
+  ctx.lineTo(x,y+rad);ctx.quadraticCurveTo(x,y,x+rad,y);ctx.closePath();ctx.fill();
+}
+function floorTile(x,y,w,h,base,lineC,ts=16){
+  r(x,y,w,h,base);
+  ctx.strokeStyle=lineC||'rgba(255,255,255,0.03)';ctx.lineWidth=0.5;
+  for(let gx=x;gx<=x+w;gx+=ts) ln(gx,y,gx,y+h,lineC||'rgba(255,255,255,0.03)',0.5);
+  for(let gy=y;gy<=y+h;gy+=ts) ln(x,gy,x+w,gy,lineC||'rgba(255,255,255,0.03)',0.5);
+}
+function woodFloor(x,y,w,h,base){
+  r(x,y,w,h,base);
+  ctx.strokeStyle='rgba(255,200,80,0.05)';ctx.lineWidth=0.5;
+  for(let gy=y;gy<=y+h;gy+=8) ln(x,gy,x+w,gy,'rgba(255,200,80,0.05)',0.5);
+  for(let gx=x+8;gx<x+w;gx+=40){
+    const off=(Math.floor((gx-x)/40)*16)%h;
+    ln(gx,y+off,gx,y+off+20,'rgba(0,0,0,0.12)',0.5);
+  }
+}
+function roomLabel(name,x,y){
+  ctx.font='bold 11px monospace';ctx.textBaseline='top';ctx.textAlign='left';
+  const tw=ctx.measureText(name).width;
+  rrect(x,y,tw+8,15,3,'rgba(0,0,0,0.75)');
+  ctx.fillStyle=P.label;ctx.fillText(name,x+4,y+2);
 }
 
-function slidingDoorV(x, y, h) {
-  ctx.save();
-  ctx.strokeStyle = '#c49858'; ctx.lineWidth = 1;
-  for (let i = 0; i <= h; i += 7) line(x - 3, y + i, x + 3, y + i);
-  line(x, y, x, y + h);
-  ctx.restore();
-}
-
-// ─── Floor plan ───────────────────────────────────────────────────────────────
+// ─── Floor plan (style-e pixel art) ───────────────────────────────────────────
 function drawFloorplan() {
-  // Room fills
-  for (const [name, r] of Object.entries(ROOMS)) {
-    ctx.fillStyle = r.fill;
-    ctx.fillRect(r.x, r.y, r.w, r.h);
+  r(0,0,800,520,P.bg);
+
+  // ── Floors ──────────────────────────────────────────────────────────────────
+  woodFloor(0,0,200,180,P.f_yard);
+  woodFloor(200,0,200,180,P.f_kit);
+  floorTile(400,0,200,180,P.f_din,'rgba(100,100,200,0.04)');
+  floorTile(600,0,200,180,P.f_game,'rgba(200,200,50,0.03)');
+  floorTile(0,180,200,180,P.f_ward,'rgba(100,200,200,0.04)',12);
+  woodFloor(200,180,400,180,P.f_liv);
+  woodFloor(600,180,200,180,P.f_bal);
+  floorTile(0,360,250,160,P.f_bed,'rgba(80,80,200,0.04)');
+  floorTile(250,360,180,160,P.f_mbath,'rgba(80,200,200,0.06)',8);
+  floorTile(430,360,120,160,P.f_gbath,'rgba(80,200,180,0.05)',8);
+
+  // ── Walls ───────────────────────────────────────────────────────────────────
+  function wallLine(x1,y1,x2,y2){ln(x1,y1,x2,y2,P.wallH,3);ln(x1+1,y1+1,x2+1,y2+1,P.wallL,1);}
+  ctx.strokeStyle=P.wallH;ctx.lineWidth=4;ctx.strokeRect(2,2,796,516);
+  wallLine(0,180,600,180);wallLine(0,360,600,360);
+  wallLine(200,0,200,180);wallLine(400,0,400,180);wallLine(600,0,600,520);
+  wallLine(200,180,200,360);
+  wallLine(250,360,250,520);wallLine(430,360,430,520);
+  wallLine(600,180,600,360);
+
+  // ── Doors ───────────────────────────────────────────────────────────────────
+  function door(x,y,horiz){
+    const dw=22,dh=5;
+    if(horiz){
+      r(x-dw/2,y-2,dw,dh,P.wall);r(x-dw/2+1,y-2+1,dw-2,dh-2,P.door);
+      r(x-dw/2+2,y,dw-4,1,P.doorH);r(x-3,y-2,6,dh,P.doorS);
+    } else {
+      r(x-2,y-dw/2,dh,dw,P.wall);r(x-2+1,y-dw/2+1,dh-2,dw-2,P.door);
+      r(x,y-dw/2+2,1,dw-4,P.doorH);r(x-2,y-3,dh,6,P.doorS);
+    }
   }
+  door(300,0,false);door(100,180,true);door(300,180,true);door(500,180,true);
+  door(400,90,false);door(600,90,false);door(600,270,false);door(700,180,true);
+  door(100,360,true);door(250,440,false);door(490,360,true);
 
-  // Room labels
-  ctx.font = 'bold 11px PingFang SC, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillStyle = 'rgba(200,170,100,0.5)';
-  const labelPos = [
-    ['院子', 370, 28],
-    ['厨房', 102, 113], ['餐厅', 367, 113], ['游戏室', 635, 113],
-    ['衣帽间', 102, 275], ['客厅', 367, 275], ['次阳台', 635, 275],
-    ['卧室', 130, 437], ['卫生间', 510, 437],
-  ];
-  for (const [lbl, lx, ly] of labelPos) ctx.fillText(lbl, lx, ly);
-
-  // Outer wall
-  ctx.strokeStyle = '#3a2010'; ctx.lineWidth = 9;
-  ctx.strokeRect(14, 14, 712, 572);
-
-  // Inner walls
-  ctx.strokeStyle = '#3a2010'; ctx.lineWidth = 6;
-
-  // y=100 horizontal (gaps for doors)
-  line(14, 100, 79, 100);
-  line(154, 100, 190, 100);
-  line(190, 100, 306, 100);
-  line(440, 100, 545, 100);
-  line(545, 100, 558, 100);
-  line(636, 100, 726, 100);
-
-  // y=262 horizontal — no door between 厨房 and 衣帽间 (solid wall)
-  line(14, 262, 726, 262);
-
-  // y=424 horizontal — gaps for 卧室↔衣帽间 (x70-134) and 卫生间↔客厅 (x430-494)
-  line(14, 424, 70, 424);
-  line(134, 424, 430, 424);
-  line(494, 424, 726, 424);
-
-  // x=190 vertical (y=100→424)
-  line(190, 100, 190, 142);
-  line(190, 208, 190, 424);  // 衣帽间↔客厅 已封墙
-
-  // x=545 vertical (y=100→424)
-  line(545, 100, 545, 134);
-  line(545, 200, 545, 296);
-  line(545, 370, 545, 424);
-
-  // x=390 vertical (y=424→586)
-  line(390, 424, 390, 488);
-  line(390, 554, 390, 586);
-
-  // Swing door arcs
-  ctx.strokeStyle = '#7a5030'; ctx.lineWidth = 1.5;
-  arc(190, 142, 66, 0, Math.PI / 2);       // 厨房→餐厅
-  arc(70, 424, 64, 0, Math.PI / 2);         // 衣帽间↔卧室（向下开）
-  arc(390, 554, 66, -Math.PI / 2, 0);      // 卧室→卫生间
-  slidingDoorH(430, 424, 64);              // 卫生间↔客厅（推拉门）
-
-  // Sliding doors (Tang lattice)
-  slidingDoorH(306, 100, 134);             // 院子↔餐厅
-  slidingDoorV(545, 136, 62);             // 餐厅↔游戏室
-  slidingDoorV(545, 298, 70);             // 客厅↔次阳台
-
-  drawFurniture();
-}
-
-function drawFurniture() {
-  // ── 厨房 (x14-190, y100-262) ──────────────────────────────────────────────
-  // 灶台
-  ctx.fillStyle = '#3a3020'; ctx.fillRect(20, 106, 80, 28);
-  ctx.strokeStyle = '#7a6030'; ctx.lineWidth = 1;
-  ctx.strokeRect(20, 106, 80, 28);
-  // 灶眼 x2
-  ctx.strokeStyle = '#c08040';
-  ctx.beginPath(); ctx.arc(38, 120, 7, 0, Math.PI*2); ctx.stroke();
-  ctx.beginPath(); ctx.arc(62, 120, 7, 0, Math.PI*2); ctx.stroke();
-  // 冰箱
-  ctx.fillStyle = '#2a3838'; ctx.fillRect(148, 106, 32, 50);
-  ctx.strokeStyle = '#4a7060'; ctx.lineWidth = 1; ctx.strokeRect(148, 106, 32, 50);
-  ctx.strokeStyle = '#3a5848'; ctx.lineWidth = 0.5; line(148, 131, 180, 131);
-  // 岛台
-  ctx.fillStyle = '#2e2818'; ctx.fillRect(30, 200, 120, 30);
-  ctx.strokeStyle = '#7a6030'; ctx.lineWidth = 1; ctx.strokeRect(30, 200, 120, 30);
-
-  // ── 餐厅 (x190-545, y100-262) ─────────────────────────────────────────────
-  // 圆桌
-  ctx.fillStyle = '#3a2c10';
-  ctx.beginPath(); ctx.arc(367, 188, 42, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle = '#c49840'; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.arc(367, 188, 42, 0, Math.PI*2); ctx.stroke();
-  // 4把椅子
-  ctx.fillStyle = '#2a2010';
-  for (const [cx, cy] of [[367,138],[417,188],[367,238],[317,188]]) {
-    ctx.beginPath(); ctx.arc(cx, cy, 10, 0, Math.PI*2); ctx.fill();
-    ctx.strokeStyle = '#8a6830'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.arc(cx, cy, 10, 0, Math.PI*2); ctx.stroke();
+  // ── YARD ────────────────────────────────────────────────────────────────────
+  for(let i=0;i<5;i++){const sx=20+i*28,sy=140;r(sx,sy,24,14,P.st1);r(sx+1,sy+1,22,12,P.st2);r(sx+2,sy+2,8,4,P.st3);r(sx+14,sy+6,6,4,P.st3);}
+  function grassPatch(x,y,w,h){r(x,y,w,h,P.gr1);for(let i=0;i<6;i++){const gx=x+Math.floor(i*w/6)+2,gw=Math.floor(w/8)+1;r(gx,y+1,gw,h-2,P.gr2);}r(x+2,y,4,3,P.gr3);r(x+w-6,y,4,3,P.gr4);r(x+w/2-2,y,4,2,P.gr3);}
+  grassPatch(6,6,30,28);grassPatch(42,4,28,22);grassPatch(76,8,22,26);grassPatch(104,6,24,20);
+  grassPatch(134,4,28,24);grassPatch(8,38,22,30);grassPatch(36,44,30,24);grassPatch(72,38,26,28);
+  grassPatch(108,40,22,26);grassPatch(138,36,30,28);grassPatch(6,78,24,28);grassPatch(40,82,28,22);
+  grassPatch(78,76,22,30);grassPatch(112,80,26,24);grassPatch(150,78,28,26);
+  grassPatch(6,116,20,22);grassPatch(30,112,22,26);grassPatch(60,118,18,20);
+  grassPatch(164,40,28,28);grassPatch(166,78,22,28);grassPatch(162,116,24,22);
+  function lantern(lx,ly){
+    r(lx-1,ly-32,2,10,P.wd2);r(lx-3,ly-22,6,3,P.wd3);
+    for(let i=0;i<4;i++){const seg=ly-18+i*8,ht=7,wide=10-Math.abs(i-1.5)*2;r(lx-wide/2,seg,wide,ht,i%2===0?P.lan:P.lan2);r(lx-wide/2+1,seg+1,wide-2,ht-2,P.lanH);}
+    r(lx-3,ly+14,6,3,P.wd3);r(lx-1,ly+17,2,8,P.lan);r(lx,ly+21,1,4,'#ff8800');
+    glowC(lx,ly,28,'rgba(255,80,0,0.18)');
   }
-  // 酒柜 (右侧)
-  ctx.fillStyle = '#2e1a08'; ctx.fillRect(500, 108, 36, 70);
-  ctx.strokeStyle = '#7a4820'; ctx.lineWidth = 1; ctx.strokeRect(500, 108, 36, 70);
-  ctx.strokeStyle = '#5a3010'; ctx.lineWidth = 0.5;
-  line(500, 143, 536, 143); line(518, 108, 518, 178);
-  // 火锅底座
-  ctx.strokeStyle = '#c04020'; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.arc(367, 188, 20, 0, Math.PI*2); ctx.stroke();
+  lantern(26,100);lantern(174,100);
+  r(82,38,36,26,P.wd);r(84,40,32,22,P.wd2);r(86,42,28,18,P.wd3);s(82,38,36,26,P.wdH,1);
+  [[82,30],[106,30],[116,50],[106,66],[82,66],[72,50]].forEach(([cx,cy])=>{r(cx-6,cy-5,12,10,P.wd);r(cx-4,cy-3,8,6,P.wd2);});
+  ci(96,50,4,P.pil);ci(96,50,3,'#8a5030');
+  ci(164,130,16,P.st1);ci(164,130,13,P.st2);ci(164,130,10,P.snk2);ci(164,130,7,P.wtr);
 
-  // ── 游戏室 (x545-726, y100-262) ───────────────────────────────────────────
-  // 电竞桌
-  ctx.fillStyle = '#1e1828'; ctx.fillRect(555, 108, 140, 32);
-  ctx.strokeStyle = '#5040a0'; ctx.lineWidth = 1; ctx.strokeRect(555, 108, 140, 32);
-  // 显示器 x2
-  ctx.fillStyle = '#0a0a18';
-  ctx.fillRect(562, 110, 44, 24); ctx.fillRect(614, 110, 44, 24);
-  ctx.strokeStyle = '#6050c0'; ctx.lineWidth = 0.8;
-  ctx.strokeRect(562, 110, 44, 24); ctx.strokeRect(614, 110, 44, 24);
-  // 电竞椅
-  ctx.fillStyle = '#2a1818'; ctx.fillRect(608, 150, 36, 40);
-  ctx.strokeStyle = '#a03030'; ctx.lineWidth = 1; ctx.strokeRect(608, 150, 36, 40);
-  // Switch放桌上
-  ctx.fillStyle = '#303040'; ctx.fillRect(570, 148, 28, 16);
-  ctx.strokeStyle = '#4040a0'; ctx.lineWidth = 0.8; ctx.strokeRect(570, 148, 28, 16);
+  // ── KITCHEN ─────────────────────────────────────────────────────────────────
+  r(202,2,196,26,P.cnt);r(204,4,192,22,P.cnt2);r(202,2,26,100,P.cnt);r(204,4,22,96,P.cnt2);
+  r(202,26,196,2,P.cntH);r(228,2,2,100,P.cntH);
+  r(205,28,20,48,P.stv);r(207,30,16,44,P.stv2);
+  [[215,40],[215,60]].forEach(([bx,by])=>{ri(bx,by,7,'#444',2);ri(bx,by,5,'#333',1.5);ci(bx,by,2,P.fire);glowC(bx,by,8,'rgba(255,80,0,0.3)');r(bx-1,by-3,2,3,'#ff6600');r(bx+1,by-2,1,2,'#ffaa00');});
+  r(202,2,26,8,'#222');r(204,5,22,2,'#333');
+  ci(215,40,8,P.hp);ctx.fillStyle='rgba(255,100,0,0.5)';ctx.beginPath();ctx.arc(215,40,4,Math.PI,0);ctx.fill();
+  r(236,4,48,20,P.snk);r(238,6,20,16,P.snk2);r(260,6,20,16,P.snk2);ci(248,14,4,P.wtr);ci(270,14,4,P.wtr);
+  r(256,4,3,8,'#666');r(257,3,1,5,'#888');
+  r(350,2,46,58,P.frig);r(352,4,42,54,P.frig2);r(352,4,42,28,P.frig);r(354,6,38,24,'#2e4040');r(352,32,42,24,P.frig2);r(354,34,38,20,'#3a5858');r(354,4,4,2,'#00cc44');
+  r(252,90,90,60,P.cnt);r(254,92,86,56,P.cnt2);r(255,93,84,54,P.wd3);s(252,90,90,60,P.cntH,1);
+  r(264,98,30,22,P.wdH);for(let i=0;i<5;i++) ln(267+i*5,101,267+i*5,117,'rgba(0,0,0,0.15)',0.5);
+  ci(272,107,4,'#1a8a00');ci(280,110,3,'#ff4400');ci(285,106,4,'#ff8800');
+  ci(310,107,10,P.plt);ci(310,107,8,P.pltI);for(let i=0;i<6;i++){const a=i/6*Math.PI*2;ci(310+Math.cos(a)*5,107+Math.sin(a)*5,2,'#d4c0a0');}
 
-  // ── 衣帽间 (x14-190, y262-424) ────────────────────────────────────────────
-  // 衣柜
-  ctx.fillStyle = '#281c10'; ctx.fillRect(20, 268, 60, 70);
-  ctx.strokeStyle = '#7a5020'; ctx.lineWidth = 1; ctx.strokeRect(20, 268, 60, 70);
-  line(50, 268, 50, 338);
-  // 鞋墙
-  ctx.fillStyle = '#1e1a14'; ctx.fillRect(20, 348, 150, 38);
-  ctx.strokeStyle = '#6a4818'; ctx.lineWidth = 1; ctx.strokeRect(20, 348, 150, 38);
-  // 鞋格子
-  for (let i = 0; i < 6; i++) {
-    ctx.strokeStyle = '#4a3010'; ctx.lineWidth = 0.5;
-    line(20 + i*25, 348, 20 + i*25, 386);
+  // ── DINING ──────────────────────────────────────────────────────────────────
+  ci(500,90,56,P.tblE);ci(500,90,52,P.tbl);ci(500,90,50,'#241c30');
+  ri(500,90,52,'rgba(100,80,150,0.5)',1.5);ri(500,90,48,'rgba(80,60,120,0.3)',0.5);
+  ci(500,90,18,P.hp);ci(500,90,16,'#111');r(482,88,18,4,'#333');
+  ci(491,90,10,P.hpR);ci(509,90,10,'#1a3050');ci(491,90,7,'#cc1800');ci(509,90,7,'#1a4a88');
+  [488,494,498].forEach(x=>ci(x,87,1.5,'rgba(255,120,0,0.8)'));[506,510,514].forEach(x=>ci(x,87,1.5,'rgba(80,160,255,0.8)'));
+  glowC(500,90,30,'rgba(255,60,0,0.12)');
+  const seats=[[500,36],[540,46],[556,80],[548,124],[500,144],[452,124],[444,80],[460,46]];
+  seats.forEach(([px,py])=>{const ang=Math.atan2(py-90,px-500);ci(px,py,9,P.plt);ci(px,py,7,P.pltI);ci(px,py,4,'#c8c8c8');const dx=Math.cos(ang+Math.PI/2),dy=Math.sin(ang+Math.PI/2);ln(px+dx*10,py+dy*10,px+dx*10+Math.cos(ang)*14,py+dy*10+Math.sin(ang)*14,P.chop,1.5);ln(px+dx*12,py+dy*12,px+dx*12+Math.cos(ang)*14,py+dy*12+Math.sin(ang)*14,P.chop,1.5);const gx=px-dx*10,gy=py-dy*10;ci(gx,gy,4,'rgba(180,220,255,0.3)');ri(gx,gy,4,'rgba(200,230,255,0.6)',1);r(gx-1,gy+4,2,4,'rgba(200,230,255,0.5)');r(gx-3,gy+8,6,1,'rgba(200,230,255,0.4)');});
+  seats.forEach(([px,py])=>{const ang=Math.atan2(py-90,px-500);const cos=Math.cos(ang),sin=Math.sin(ang);const cx=px+cos*14,cy=py+sin*14;r(cx-7,cy-7,14,14,P.wd);r(cx-5,cy-5,10,10,P.wd2);r(cx+cos*7-4,cy+sin*7-4,8,8,P.wd);r(cx+cos*7-3,cy+sin*7-3,6,6,P.wd3);});
+  [[422,72],[578,72],[422,108],[578,108]].forEach(([dx,dy])=>{ci(dx,dy,7,'#cc8020');ci(dx,dy,5,'#dd9030');});
+  ci(500,64,8,P.wd2);ci(500,64,6,P.wd3);
+
+  // ── GAME ROOM ───────────────────────────────────────────────────────────────
+  r(605,3,188,36,P.tv1);r(608,5,182,30,P.tv2);r(609,6,180,28,P.tvS);
+  {const g=ctx.createLinearGradient(609,6,789,6);g.addColorStop(0,'#0a1428');g.addColorStop(0.5,'#142040');g.addColorStop(1,'#0a1428');ctx.fillStyle=g;ctx.fillRect(610,7,178,26);}
+  r(612,8,80,4,'#1a3a6a');r(712,8,70,4,'#3a1a1a');r(614,14,20,16,'rgba(100,160,255,0.4)');r(636,14,20,16,'rgba(255,100,100,0.4)');
+  r(612,26,60,3,'#1a4a1a');r(612,26,40,3,'#00cc44');r(720,26,60,3,'#4a1a1a');r(720,26,55,3,'#cc2200');
+  r(608,33,182,2,'rgba(255,255,255,0.05)');ci(785,9,2,'#00cc44');glowC(785,9,6,'rgba(0,200,60,0.4)');r(684,39,30,8,P.wd2);r(682,47,34,4,P.wd);
+  {const gc={x:688,y:80};[[gc.x-12,gc.y+50],[gc.x+12,gc.y+50]].forEach(([wx,wy])=>{ci(wx,wy,3,'#222');ri(wx,wy,2,'#444',1);});ci(gc.x,gc.y+44,12,'#1a1a1a');ri(gc.x,gc.y+44,10,'#333',1);r(gc.x-18,gc.y+22,36,22,'#1a1a1a');r(gc.x-16,gc.y+24,32,18,P.s1);r(gc.x-14,gc.y+26,28,14,P.s2);r(gc.x-17,gc.y-2,34,28,'#111');r(gc.x-15,gc.y,30,24,P.s1);r(gc.x-12,gc.y+2,24,20,P.s2);r(gc.x-12,gc.y+14,24,8,P.s3);r(gc.x-10,gc.y-16,20,18,'#111');r(gc.x-8,gc.y-14,16,14,P.s1);r(gc.x-6,gc.y-12,12,10,P.sH);r(gc.x-22,gc.y+8,8,24,P.s1);r(gc.x+14,gc.y+8,8,24,P.s1);}
+  r(720,60,76,70,P.wd);r(722,62,72,66,P.wd2);r(724,64,68,62,P.wd3);r(726,56,30,28,'#0a0a0a');r(728,58,26,22,P.tvS);r(728,58,26,22,P.tvG);glowC(741,69,14,'rgba(30,80,180,0.35)');r(756,56,30,28,'#0a0a0a');r(758,58,26,22,P.tvS);glowC(771,69,14,'rgba(180,30,30,0.25)');
+  r(726,100,52,12,'#1a1a1a');r(728,102,48,8,'#222');for(let i=0;i<10;i++) for(let j=0;j<2;j++) r(729+i*5,103+j*4,3,3,'#2a2a2a');
+  r(726,118,24,40,'#111');r(728,120,20,36,'#1a1a1a');r(730,128,6,4,'rgba(0,150,255,0.8)');[0,1,2].forEach(i=>ci(745,123+i*6,2,['#00cc44','#0088ff','rgba(255,100,0,0.5)'][i]));
+
+  // ── WARDROBE ────────────────────────────────────────────────────────────────
+  r(3,182,194,40,'#141e20');r(5,184,190,36,'#1e2e30');
+  for(let i=0;i<4;i++){const dx=6+i*47;r(dx,184,43,36,'#2a4040');r(dx+4,188,35,4,'rgba(0,0,0,0.3)');r(dx+4,198,35,4,'rgba(0,0,0,0.3)');r(dx+4,208,35,8,'rgba(0,0,0,0.3)');r(dx+16,194,12,3,P.handle);r(dx+17,194,10,2,P.doorH);r(dx+38,186,3,3,P.st3);r(dx+38,212,3,3,P.st3);}
+  r(3,224,46,134,'#141e20');r(5,226,42,130,'#1e2e30');
+  for(let i=0;i<4;i++){r(6,228+i*32,40,28,'#2a4040');r(7,229+i*32,38,26,'rgba(255,255,255,0.02)');r(8,238+i*32,3,8,P.handle);}
+  r(52,326,110,30,P.wd);r(54,328,106,26,P.wd2);for(let i=0;i<5;i++){r(56+i*20,330,16,22,P.wd3);r(58+i*20,336,12,6,'#1a1010');}
+  r(130,200,58,126,P.wd);r(132,202,54,122,P.wd2);r(133,203,52,120,'#1a2828');ctx.fillStyle='rgba(200,240,255,0.08)';ctx.beginPath();ctx.moveTo(133,203);ctx.lineTo(160,203);ctx.lineTo(133,240);ctx.closePath();ctx.fill();r(134,204,12,2,'rgba(255,255,255,0.2)');
+  r(148,328,40,28,P.s1);r(150,330,36,24,P.s2);r(152,332,32,20,P.s3);
+
+  // ── LIVING ROOM ─────────────────────────────────────────────────────────────
+  r(220,200,280,120,P.rug1);r(226,206,268,108,P.rug2);
+  for(let i=0;i<4;i++) for(let j=0;j<2;j++){r(232+i*64,212+j*48,48,38,P.rugP);s(232+i*64,212+j*48,48,38,'rgba(200,80,140,0.2)',0.5);}
+  ri(350,260,50,'rgba(200,80,140,0.15)',1);s(220,200,280,120,'rgba(200,80,140,0.25)',1);
+  r(202,181,100,30,'#0f0f18');r(204,182,96,28,P.tv1);r(206,183,92,24,P.tvS);
+  {const tg=ctx.createLinearGradient(206,183,298,207);tg.addColorStop(0,'#0d1a30');tg.addColorStop(1,'#0a1428');ctx.fillStyle=tg;ctx.fillRect(206,183,92,24);}
+  for(let i=0;i<3;i++) r(208+i*30,184,26,10,'rgba('+(30+i*20)+',40,'+(80-i*20)+',0.5)');
+  r(208,195,90,10,'rgba(0,0,0,0.3)');r(210,197,30,6,'rgba(200,80,80,0.4)');r(244,197,20,6,'rgba(80,200,80,0.3)');glowC(252,195,20,'rgba(20,60,160,0.3)');ci(295,184,2,'#cc3300');r(240,207,18,4,P.wd2);r(238,211,22,2,P.wd);
+  r(202,211,96,20,P.wd);r(204,213,92,16,P.wd2);r(206,214,20,14,'#1a1a2a');r(228,214,20,14,'#1a1a2a');r(208,216,16,4,'#111');r(230,216,8,4,'#1a1a1a');ci(240,218,2,'#00aa44');r(270,213,24,14,'#111');for(let i=0;i<6;i++) for(let j=0;j<2;j++) ci(273+i*4,216+j*5,1.5,'#222');
+  function sofa(x,y,w,h,backDir){
+    ctx.fillStyle='rgba(0,0,0,0.2)';ctx.fillRect(x+4,y+4,w,h);r(x,y,w,h,P.s1);const bk=12,arm=10;
+    if(backDir==='top'){r(x,y,w,bk,P.wd);r(x+1,y+1,w-2,bk-2,P.wd2);r(x+arm,y+bk,w-arm*2,h-bk,P.s2);const nc=Math.floor((w-arm*2)/38);for(let i=0;i<nc;i++){const cx2=x+arm+i*((w-arm*2)/nc)+2,cw=(w-arm*2)/nc-4;r(cx2,y+bk+2,cw,h-bk-4,P.s3);r(cx2+2,y+bk+3,cw-4,6,P.sH);ln(cx2+cw/2,y+bk+3,cx2+cw/2,y+h-3,'rgba(0,0,0,0.2)',1);}r(x,y+bk,arm,h-bk,P.s1);r(x+w-arm,y+bk,arm,h-bk,P.s1);}
+    else if(backDir==='right'){r(x+w-bk,y,bk,h,P.wd);r(x+w-bk+1,y+1,bk-2,h-2,P.wd2);r(x,y+arm,w-bk,h-arm*2,P.s2);const nc=Math.floor((h-arm*2)/36);for(let i=0;i<nc;i++){const cy2=y+arm+i*((h-arm*2)/nc)+2,ch=(h-arm*2)/nc-4;r(x+2,cy2,w-bk-4,ch,P.s3);r(x+3,cy2+2,w-bk-6,6,P.sH);ln(x+3,cy2+ch/2,x+w-bk-3,cy2+ch/2,'rgba(0,0,0,0.2)',1);}r(x,y,w-bk,arm,P.s1);r(x,y+h-arm,w-bk,arm,P.s1);}
   }
-  // 全身镜
-  ctx.fillStyle = '#1a2028'; ctx.fillRect(148, 268, 26, 72);
-  ctx.strokeStyle = '#c0a040'; ctx.lineWidth = 1.5; ctx.strokeRect(148, 268, 26, 72);
-  // 镜框角装饰
-  ctx.strokeStyle = '#e0c060'; ctx.lineWidth = 1;
-  ctx.strokeRect(150, 270, 22, 68);
+  sofa(204,183,180,42,'top');sofa(388,183,44,134,'right');r(388,183,16,42,P.s2);r(390,185,12,38,P.s3);
+  r(256,250,130,58,P.wd);r(258,252,126,54,P.wd2);r(260,254,122,50,P.wd3);s(256,250,130,58,P.wdH,1);ctx.fillStyle='rgba(150,200,255,0.08)';ctx.fillRect(261,255,120,48);s(261,255,120,48,'rgba(150,200,255,0.2)',0.5);
+  ci(285,275,8,'#cc8020');ci(285,275,6,'#dd9030');r(283,265,4,12,'rgba(80,40,0,0.7)');ci(318,278,10,P.plt);ci(318,278,7,P.pltI);for(let i=0;i<4;i++){const a=i/4*Math.PI*2;ci(318+Math.cos(a)*5,278+Math.sin(a)*5,2,'#d4b080');}ci(350,268,6,P.gr2);ci(348,265,4,P.gr3);ci(353,264,5,P.gr4);r(348,273,6,6,P.pot);
+  r(436,200,34,28,P.wd);r(438,202,30,24,P.wd2);ci(453,212,10,'#2a2020');ci(453,212,8,'#1a1010');r(452,190,2,22,'#333');ctx.fillStyle='rgba(255,200,80,0.15)';ctx.beginPath();ctx.arc(453,188,20,Math.PI,0);ctx.fill();r(444,186,18,4,'rgba(200,150,40,0.6)');r(447,183,12,3,'rgba(255,200,80,0.7)');glowC(453,188,28,'rgba(255,200,80,0.2)');
+  r(440,250,48,96,P.wd);r(442,252,44,92,P.wd2);for(let row=0;row<4;row++){const by=256+row*22;r(443,by,42,18,'rgba(0,0,0,0.3)');const cols=['#8a1a1a','#1a3a8a','#1a6a1a','#6a4a1a','#4a1a6a','#8a6a1a','#1a5a5a'];let bx=444;while(bx<482){const bw=((bx*3+row*7)%6)+5;r(bx,by+1,bw,16,cols[(bx+row*3)%7]);r(bx+1,by+2,bw-2,3,'rgba(255,255,255,0.1)');bx+=bw+1;}}for(let i=1;i<4;i++) r(442,252+i*22,44,2,'rgba(255,255,255,0.05)');
 
-  // ── 客厅 (x190-545, y262-424) ─────────────────────────────────────────────
-  // L形沙发
-  ctx.fillStyle = '#2a2030';
-  ctx.fillRect(210, 290, 160, 40);   // 主沙发
-  ctx.fillRect(200, 290, 40, 80);    // 侧沙发
-  ctx.strokeStyle = '#6050a0'; ctx.lineWidth = 1;
-  ctx.strokeRect(210, 290, 160, 40);
-  ctx.strokeRect(200, 290, 40, 80);
-  // 懒人沙发
-  ctx.fillStyle = '#281820';
-  ctx.beginPath(); ctx.arc(430, 320, 22, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle = '#8040a0'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.arc(430, 320, 22, 0, Math.PI*2); ctx.stroke();
-  // 茶几
-  ctx.fillStyle = '#1e1810'; ctx.fillRect(255, 340, 80, 40);
-  ctx.strokeStyle = '#6a5020'; ctx.lineWidth = 1; ctx.strokeRect(255, 340, 80, 40);
-  // 65寸TV + 柜
-  ctx.fillStyle = '#0a0a0a'; ctx.fillRect(310, 398, 120, 16);
-  ctx.strokeStyle = '#405060'; ctx.lineWidth = 1; ctx.strokeRect(310, 398, 120, 16);
-  ctx.fillStyle = '#181818'; ctx.fillRect(295, 414, 150, 8);
-  ctx.strokeStyle = '#304050'; ctx.lineWidth = 0.5; ctx.strokeRect(295, 414, 150, 8);
-  // PS5 (白色小方块在TV柜旁)
-  ctx.fillStyle = '#d8d8d8'; ctx.fillRect(440, 396, 18, 12);
-  ctx.strokeStyle = '#0060c0'; ctx.lineWidth = 0.8; ctx.strokeRect(440, 396, 18, 12);
+  // ── BALCONY ──────────────────────────────────────────────────────────────────
+  for(let bx=602;bx<794;bx+=10){r(bx,183,6,160,'rgba(60,100,60,0.15)');r(bx,183,3,4,P.gr2);r(bx,335,3,4,P.gr2);}
+  r(602,182,192,5,P.gr1);r(602,356,192,5,P.gr1);r(600,182,4,178,'#2a3a2a');r(796,182,4,178,'#2a3a2a');
+  function bigPlant(px,py,sz){ci(px,py,sz*1.1,P.gr1);ci(px-sz*.6,py+sz*.2,sz*.9,P.gr1);ci(px+sz*.6,py+sz*.2,sz*.9,P.gr1);ci(px,py-sz*.5,sz*.8,P.gr2);ci(px-sz*.4,py-sz*.2,sz*.7,P.gr2);ci(px+sz*.4,py-sz*.2,sz*.7,P.gr2);ci(px,py,sz*.7,P.gr2);ci(px-sz*.3,py+sz*.1,sz*.5,P.gr3);ci(px+sz*.3,py+sz*.1,sz*.5,P.gr3);ci(px,py-sz*.3,sz*.4,P.gr4);r(px-sz*.15,py+sz*.8,sz*.3,sz*.5,P.pot);r(px-sz*.2,py+sz*1.2,sz*.4,sz*.15,P.pot2);}
+  bigPlant(626,220,18);bigPlant(660,215,16);bigPlant(696,222,20);bigPlant(730,216,15);bigPlant(764,218,18);bigPlant(614,270,14);bigPlant(648,275,16);bigPlant(684,268,14);bigPlant(720,272,18);bigPlant(756,266,15);bigPlant(790,270,14);
+  for(let i=0;i<3;i++){const hx=618+i*60;r(hx-5,185,10,6,P.pot);ci(hx,186,5,P.gr2);ci(hx-2,184,4,P.gr3);}
+  function lounger(lx,ly,w,h){r(lx,ly,w,h,P.s1);r(lx+1,ly+1,w-2,h-2,P.s2);r(lx,ly,w,8,P.wd);r(lx+1,ly+1,w-2,6,P.wd2);r(lx+4,ly+10,w-8,h-14,P.s3);for(let i=0;i<3;i++) ln(lx+5,ly+14+i*10,lx+w-5,ly+14+i*10,'rgba(0,0,0,0.15)',0.5);}
+  lounger(608,292,46,52);lounger(744,292,46,52);r(672,300,40,30,P.wd);r(674,302,36,26,P.wd2);ci(692,316,5,P.plt);ci(692,310,4,'#cc8020');
+  ci(790,196,3,'rgba(255,255,200,0.6)');glowC(790,196,8,'rgba(255,255,180,0.15)');
 
-  // ── 次阳台 (x545-726, y262-424) ───────────────────────────────────────────
-  // 藤椅 x2
-  ctx.strokeStyle = '#6a7840'; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.arc(585, 310, 18, 0, Math.PI*2); ctx.stroke();
-  ctx.beginPath(); ctx.arc(640, 310, 18, 0, Math.PI*2); ctx.stroke();
-  // 大盆栽
-  ctx.fillStyle = '#1a2810'; ctx.fillRect(670, 270, 36, 50);
-  ctx.strokeStyle = '#3a5820'; ctx.lineWidth = 1; ctx.strokeRect(670, 270, 36, 50);
-  // 植物叶子
-  ctx.strokeStyle = '#4a8030'; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.arc(688, 265, 20, Math.PI, Math.PI*2); ctx.stroke();
-  ctx.beginPath(); ctx.arc(675, 260, 14, Math.PI+0.3, Math.PI*2-0.3); ctx.stroke();
-  ctx.beginPath(); ctx.arc(700, 258, 14, Math.PI+0.3, Math.PI*2-0.3); ctx.stroke();
-  // 灯笼（春节装饰）
-  ctx.fillStyle = '#8a1010';
-  ctx.beginPath(); ctx.arc(612, 278, 9, 0, Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(660, 278, 9, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle = '#ffaa00'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.arc(612, 278, 9, 0, Math.PI*2); ctx.stroke();
-  ctx.beginPath(); ctx.arc(660, 278, 9, 0, Math.PI*2); ctx.stroke();
+  // ── BEDROOM ──────────────────────────────────────────────────────────────────
+  const bed={x:20,y:372,w:180,h:126};
+  r(bed.x+3,bed.y+3,bed.w,bed.h,'rgba(0,0,0,0.3)');r(bed.x,bed.y,bed.w,bed.h,P.wd);
+  r(bed.x,bed.y,bed.w,18,P.wd);r(bed.x+2,bed.y+2,bed.w-4,14,P.wd2);
+  for(let i=0;i<4;i++){const hx=bed.x+8+i*46;r(hx,bed.y+3,38,12,P.wd3);r(hx+2,bed.y+5,34,6,'rgba(255,255,255,0.1)');}
+  r(bed.x+1,bed.y+16,bed.w-2,2,P.wdH);r(bed.x+4,bed.y+18,bed.w-8,bed.h-22,P.b2);
+  r(bed.x+5,bed.y+38,94,bed.h-42,'#3a3a70');r(bed.x+7,bed.y+40,90,bed.h-46,P.b3);
+  for(let i=0;i<3;i++) ln(bed.x+8,bed.y+50+i*18,bed.x+92,bed.y+46+i*18,'rgba(255,255,255,0.08)',1);
+  ctx.fillStyle='rgba(100,100,200,0.15)';ctx.beginPath();ctx.moveTo(bed.x+5,bed.y+38);ctx.lineTo(bed.x+50,bed.y+38);ctx.lineTo(bed.x+8,bed.y+65);ctx.closePath();ctx.fill();
+  r(bed.x+103,bed.y+38,94,bed.h-42,'#3a3a70');r(bed.x+105,bed.y+40,90,bed.h-46,P.b3);for(let i=0;i<3;i++) ln(bed.x+106,bed.y+50+i*18,bed.x+190,bed.y+46+i*18,'rgba(255,255,255,0.08)',1);
+  r(bed.x+98,bed.y+38,8,bed.h-40,P.b2);
+  [[bed.x+8,bed.y+20,40,16],[bed.x+54,bed.y+20,40,16],[bed.x+108,bed.y+20,40,16],[bed.x+154,bed.y+20,40,16]].forEach(([px,py,pw,ph])=>{ctx.fillStyle='rgba(0,0,0,0.2)';ctx.fillRect(px+2,py+2,pw,ph);r(px,py,pw,ph,P.pil);r(px+2,py+2,pw-4,ph-4,P.pilH);r(px+4,py+3,pw-8,4,'rgba(255,255,255,0.3)');s(px,py,pw,ph,'rgba(180,160,220,0.3)',0.5);});
+  r(bed.x,bed.y+bed.h-4,bed.w,4,P.wd);r(bed.x+2,bed.y+bed.h-3,bed.w-4,2,P.wd3);
+  function nightstand(nx,ny){ctx.fillStyle='rgba(0,0,0,0.2)';ctx.fillRect(nx+2,ny+2,40,40);r(nx,ny,40,40,P.wd);r(nx+1,ny+1,38,38,P.wd2);r(nx+3,ny+4,34,14,P.wd3);r(nx+14,ny+9,12,4,P.handle);r(nx+15,ny+10,10,2,P.doorH);}
+  nightstand(bed.x-44,bed.y+10);nightstand(bed.x+bed.w+4,bed.y+10);
+  ci(bed.x-24,bed.y+22,5,'#1a1010');r(bed.x-25,bed.y+4,2,18,'#333');ctx.fillStyle='rgba(255,220,100,0.2)';ctx.beginPath();ctx.arc(bed.x-24,bed.y+4,14,Math.PI,0);ctx.fill();r(bed.x-31,bed.y+2,14,4,'rgba(200,150,40,0.6)');r(bed.x-25,bed.y+2,2,4,'rgba(255,200,80,0.7)');glowC(bed.x-24,bed.y+4,22,'rgba(255,200,80,0.2)');
+  r(bed.x+bed.w+10,bed.y+26,14,8,'#1a1a2a');r(bed.x+bed.w+8,bed.y+35,18,10,'#4a3018');
+  r(4,406,24,34,P.wd);r(5,407,22,32,P.wd2);r(6,407,22,30,'#111');r(7,408,20,22,P.tvS);glowC(17,419,8,'rgba(20,80,180,0.3)');
+  for(let i=0;i<5;i++){r(8,410+i*4,Math.floor(6+i*2.5),2,'rgba(100,200,100,0.4)');r(8+Math.floor(6+i*2.5)+1,410+i*4,Math.floor(3+i),2,'rgba(150,150,255,0.3)');}
+  r(162,408,56,104,P.wd);r(164,410,52,100,P.wd2);for(let i=0;i<4;i++){r(166,412+i*24,48,20,P.wd3);r(168,414+i*24,44,16,'rgba(0,0,0,0.2)');r(184,419+i*24,12,4,P.handle);r(185,420+i*24,10,2,P.doorH);}
+  ci(172,408,4,'#cc8020');r(178,407,10,3,'#1a1a2a');
 
-  // ── 卧室 (x14-390, y424-586) ──────────────────────────────────────────────
-  // 特大号床
-  ctx.fillStyle = '#1e2030'; ctx.fillRect(25, 445, 120, 100);
-  ctx.strokeStyle = '#4050a0'; ctx.lineWidth = 1; ctx.strokeRect(25, 445, 120, 100);
-  // 床头
-  ctx.fillStyle = '#2a2840'; ctx.fillRect(25, 445, 120, 22);
-  ctx.strokeStyle = '#6070c0'; ctx.lineWidth = 1; ctx.strokeRect(25, 445, 120, 22);
-  // 床垫纹
-  ctx.strokeStyle = '#303050'; ctx.lineWidth = 0.5;
-  ctx.strokeRect(32, 470, 106, 70);
-  // 智能面板
-  ctx.fillStyle = '#101820'; ctx.fillRect(155, 450, 28, 18);
-  ctx.strokeStyle = '#2060a0'; ctx.lineWidth = 1; ctx.strokeRect(155, 450, 28, 18);
+  // ── MASTER BATH ──────────────────────────────────────────────────────────────
+  r(256,368,120,60,P.bt1);r(258,370,116,56,P.bt2);r(260,372,112,52,'#b8d0cc');r(262,374,108,48,P.btW);
+  ctx.fillStyle='rgba(80,160,200,0.4)';ctx.fillRect(263,375,106,46);for(let i=0;i<3;i++) ln(264,382+i*12,368,382+i*12,'rgba(150,220,255,0.2)',0.5);
+  [[257,427],[373,427],[257,370],[373,370]].forEach(([fx,fy])=>{ci(fx,fy,4,P.wc2);});r(308,367,8,6,'#999');r(311,363,2,8,'#bbb');ci(312,363,3,'#ccc');glowC(316,395,24,'rgba(80,180,220,0.12)');
+  r(386,364,38,62,P.bt1);r(388,366,34,58,P.bt2);r(390,368,30,54,'#c0d0cc');r(386,364,4,62,'rgba(150,200,220,0.35)');ln(386,364,386,426,'rgba(200,240,255,0.6)',1);
+  ci(404,372,5,'#888');ci(404,372,3,'#aaa');ri(404,372,4,'rgba(150,200,255,0.5)',1);for(let i=-1;i<=1;i++) for(let j=0;j<2;j++) ci(404+i*3,376+j*3,1,'rgba(150,200,255,0.5)');ci(404,414,4,'#1a2828');ri(404,414,3,'#333',1);
+  for(let tx=390;tx<422;tx+=7) for(let ty=368;ty<424;ty+=7){ctx.strokeStyle='rgba(0,0,0,0.15)';ctx.lineWidth=0.5;ctx.strokeRect(tx+.5,ty+.5,6,6);}
+  r(253,446,40,28,P.wc1);r(255,448,36,24,P.wc2);r(255,474,38,36,P.wc1);r(257,476,34,32,P.wc2);ci(274,492,12,P.wc1);ci(274,492,9,'#d8dcd8');ci(274,492,6,P.wcI);ci(270,454,3,P.wc2);ci(278,454,3,P.wc2);
+  r(300,446,124,54,P.cnt);r(302,448,120,50,P.cnt2);r(304,450,116,46,P.snk);r(306,452,112,42,P.snk2);
+  r(308,454,44,30,P.snk);r(310,456,40,26,P.btW);ci(330,469,6,P.snk2);r(358,454,44,30,P.snk);r(360,456,40,26,P.btW);ci(380,469,6,P.snk2);
+  r(328,448,4,6,'#888');ci(330,448,3,'#aaa');r(378,448,4,6,'#888');ci(380,448,3,'#aaa');
+  r(300,448,124,2,P.wd2);r(302,424,120,24,'#1a2828');s(302,424,120,24,'rgba(200,230,240,0.3)',1);
+  ctx.fillStyle='rgba(200,240,255,0.07)';ctx.beginPath();ctx.moveTo(302,424);ctx.lineTo(385,424);ctx.lineTo(302,448);ctx.closePath();ctx.fill();
+  for(let i=0;i<2;i++){r(250,436+i*14,4,10,P.st3);r(249,435+i*14,6,3,'#777');r(249,444+i*14,6,3,'#777');}
+  r(422,430,4,70,'#555');r(420,428,8,4,'#666');r(420,498,8,4,'#666');for(let i=0;i<4;i++) r(420,435+i*16,8,3,'rgba(255,120,0,0.3)');
 
-  // ── 卫生间 (x390-726, y424-586) ───────────────────────────────────────────
-  // 浴缸
-  ctx.fillStyle = '#1a2830'; ctx.fillRect(400, 438, 80, 50);
-  ctx.strokeStyle = '#3070a0'; ctx.lineWidth = 1.5; ctx.strokeRect(400, 438, 80, 50);
-  ctx.strokeStyle = '#2050808'; ctx.lineWidth = 0.5; ctx.strokeRect(406, 444, 68, 38);
-  // 独立淋浴
-  ctx.fillStyle = '#1e2a28'; ctx.fillRect(500, 432, 50, 60);
-  ctx.strokeStyle = '#408060'; ctx.lineWidth = 1; ctx.strokeRect(500, 432, 50, 60);
-  // 莲蓬头
-  ctx.strokeStyle = '#60a080'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.arc(525, 444, 8, 0, Math.PI*2); ctx.stroke();
-  // 马桶
-  ctx.fillStyle = '#2a2820'; ctx.fillRect(618, 455, 36, 46);
-  ctx.strokeStyle = '#706050'; ctx.lineWidth = 1; ctx.strokeRect(618, 455, 36, 46);
-  ctx.fillStyle = '#222018'; ctx.fillRect(614, 452, 44, 14);
-  ctx.strokeStyle = '#605040'; ctx.lineWidth = 0.8; ctx.strokeRect(614, 452, 44, 14);
+  // ── GUEST BATH ───────────────────────────────────────────────────────────────
+  r(433,364,58,58,P.bt1);r(435,366,54,54,P.bt2);r(437,368,50,50,'#c0d0cc');r(433,364,4,58,'rgba(150,200,220,0.35)');ln(433,364,433,422,'rgba(200,240,255,0.6)',1);
+  ci(462,372,5,'#888');ci(462,372,3,'#aaa');ri(462,372,4,'rgba(150,200,255,0.5)',1);for(let i=-1;i<=1;i++) for(let j=0;j<2;j++) ci(462+i*3,376+j*3,1,'rgba(150,200,255,0.5)');ci(462,412,4,'#1a2828');ri(462,412,3,'#333',1);
+  for(let tx=437;tx<487;tx+=7) for(let ty=368;ty<420;ty+=7){ctx.strokeStyle='rgba(0,0,0,0.15)';ctx.lineWidth=0.5;ctx.strokeRect(tx+.5,ty+.5,6,6);}
+  r(432,432,42,26,P.wc1);r(434,434,38,22,P.wc2);r(433,458,40,36,P.wc1);r(435,460,36,32,P.wc2);ci(453,476,12,P.wc1);ci(453,476,9,'#d8dcd8');ci(453,476,6,P.wcI);ci(449,440,3,P.wc2);ci(457,440,3,P.wc2);
+  r(480,432,64,44,P.cnt);r(482,434,60,40,P.cnt2);r(484,436,56,36,P.snk);r(486,438,52,32,P.snk2);r(488,440,48,26,P.btW);ci(512,453,6,P.snk2);ci(512,453,4,'rgba(60,140,180,0.5)');r(510,432,4,6,'#888');ci(512,432,3,'#aaa');
+  r(480,432,64,2,P.wd2);r(482,414,60,18,'#1a2828');s(482,414,60,18,'rgba(200,230,240,0.3)',1);
+  ctx.fillStyle='rgba(200,240,255,0.07)';ctx.beginPath();ctx.moveTo(482,414);ctx.lineTo(520,414);ctx.lineTo(482,432);ctx.closePath();ctx.fill();
+  r(432,492,62,4,P.st3);r(430,490,4,8,'#666');r(492,490,4,8,'#666');r(432,494,18,4,P.wc2);r(458,494,18,4,P.wc2);
+
+  // ── ROOM LABELS (last = always on top) ───────────────────────────────────────
+  roomLabel('院子',4,2);roomLabel('厨房',204,2);roomLabel('餐厅',404,2);roomLabel('游戏室',604,2);
+  roomLabel('衣帽间',4,182);roomLabel('客厅',204,182);roomLabel('次阳台',604,182);
+  roomLabel('卧室',4,362);roomLabel('主卫',254,362);roomLabel('客卫',434,362);
 }
 
-// ─── Character avatar drawers ─────────────────────────────────────────────────
-// Each draws a ~30×36px chibi portrait centered at (0,0), call with ctx translated
-
-function drawXiaohei(x, y) {
-  ctx.save(); ctx.translate(x, y);
-  // Body
-  ctx.fillStyle = '#2a4a7a'; ctx.beginPath(); ctx.arc(0, 4, 11, 0, Math.PI*2); ctx.fill();
-  // Head
-  ctx.fillStyle = '#1a1a2e'; ctx.beginPath(); ctx.arc(0, -8, 10, 0, Math.PI*2); ctx.fill();
-  // Cat ears
-  ctx.fillStyle = '#1a1a2e';
-  ctx.beginPath(); ctx.moveTo(-9,-15); ctx.lineTo(-5,-8); ctx.lineTo(-2,-13); ctx.closePath(); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(9,-15); ctx.lineTo(5,-8); ctx.lineTo(2,-13); ctx.closePath(); ctx.fill();
-  // Inner ear
-  ctx.fillStyle = '#4a3050';
-  ctx.beginPath(); ctx.moveTo(-8,-14); ctx.lineTo(-5,-9); ctx.lineTo(-3,-13); ctx.closePath(); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(8,-14); ctx.lineTo(5,-9); ctx.lineTo(3,-13); ctx.closePath(); ctx.fill();
-  // Eyes (blue)
-  ctx.fillStyle = '#4a90d9';
-  ctx.beginPath(); ctx.arc(-3.5,-8,2.5,0,Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(3.5,-8,2.5,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#000';
-  ctx.beginPath(); ctx.arc(-3.5,-8,1.2,0,Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(3.5,-8,1.2,0,Math.PI*2); ctx.fill();
-  // Tiny nose
-  ctx.fillStyle = '#d08060';
-  ctx.beginPath(); ctx.arc(0,-5.5,1,0,Math.PI*2); ctx.fill();
-  ctx.restore();
+// ─── Character drawers (style-e pixel art) ───────────────────────────────────
+function spriteShadow(cx,cy){
+  ctx.fillStyle='rgba(0,0,0,0.28)';ctx.beginPath();ctx.ellipse(cx,cy+18,11,4,0,0,Math.PI*2);ctx.fill();
 }
 
-function drawWuxian(x, y) {
-  ctx.save(); ctx.translate(x, y);
-  // Body (purple robe)
-  ctx.fillStyle = '#6a3a8a'; ctx.beginPath(); ctx.arc(0, 4, 11, 0, Math.PI*2); ctx.fill();
-  // Head
-  ctx.fillStyle = '#f0d8c0'; ctx.beginPath(); ctx.arc(0, -8, 10, 0, Math.PI*2); ctx.fill();
-  // Hair (silver/white)
-  ctx.fillStyle = '#c8d8e8';
-  ctx.beginPath(); ctx.arc(0,-14,8,Math.PI,0); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(-10,-12); ctx.lineTo(-12,-2); ctx.lineTo(-8,-8); ctx.closePath(); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(10,-12); ctx.lineTo(12,-2); ctx.lineTo(8,-8); ctx.closePath(); ctx.fill();
-  // Elf ears
-  ctx.fillStyle = '#f0d8c0';
-  ctx.beginPath(); ctx.moveTo(-10,-7); ctx.lineTo(-15,-4); ctx.lineTo(-9,-3); ctx.closePath(); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(10,-7); ctx.lineTo(15,-4); ctx.lineTo(9,-3); ctx.closePath(); ctx.fill();
-  // Eyes (gentle violet)
-  ctx.fillStyle = '#9b59b6';
-  ctx.beginPath(); ctx.arc(-3,-8,2.2,0,Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(3,-8,2.2,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#1a0a28';
-  ctx.beginPath(); ctx.arc(-3,-8,1,0,Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(3,-8,1,0,Math.PI*2); ctx.fill();
-  // Small smile
-  ctx.strokeStyle = '#c09080'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.arc(0,-4,3,0.2,Math.PI-0.2); ctx.stroke();
-  ctx.restore();
+function drawXiaohei(cx,cy){
+  r(cx-4,cy-2,8,5,'#111');
+  r(cx-10,cy-24,20,20,'#111');r(cx-9,cy-25,18,21,'#111');
+  r(cx-10,cy-35,7,13,'#111');r(cx-9,cy-37,5,6,'#0a0a0a');r(cx+3,cy-35,7,13,'#111');r(cx+4,cy-37,5,6,'#0a0a0a');
+  r(cx-8,cy-34,4,10,'#e08888');r(cx+4,cy-34,4,10,'#e08888');
+  r(cx-6,cy-20,5,5,'#050510');r(cx+1,cy-20,5,5,'#050510');
+  r(cx-5,cy-20,4,4,'#1155dd');r(cx+2,cy-20,4,4,'#1155dd');
+  r(cx-3,cy-19,1,4,'#020210');r(cx+4,cy-19,1,4,'#020210');
+  r(cx-5,cy-21,2,2,'#ffffff');r(cx+2,cy-21,2,2,'#ffffff');
+  r(cx-1,cy-14,3,2,'#ff9999');r(cx-1,cy-13,3,2,'#ffaaaa');
+  ln(cx-11,cy-14,cx-2,cy-13,'rgba(240,240,240,0.75)',0.8);ln(cx-11,cy-12,cx-2,cy-12,'rgba(240,240,240,0.75)',0.8);
+  ln(cx+2,cy-13,cx+11,cy-14,'rgba(240,240,240,0.75)',0.8);ln(cx+2,cy-12,cx+11,cy-12,'rgba(240,240,240,0.75)',0.8);
+  ln(cx-2,cy-10,cx-1,cy-9,'#e08888',1);ln(cx-1,cy-9,cx,cy-10,'#e08888',1);ln(cx,cy-10,cx+1,cy-9,'#e08888',1);ln(cx+1,cy-9,cx+2,cy-10,'#e08888',1);
 }
 
-function drawNezha(x, y) {
-  ctx.save(); ctx.translate(x, y);
-  // Body (red)
-  ctx.fillStyle = '#c0281a'; ctx.beginPath(); ctx.arc(0, 4, 11, 0, Math.PI*2); ctx.fill();
-  // Head
-  ctx.fillStyle = '#f5e0c0'; ctx.beginPath(); ctx.arc(0, -8, 10, 0, Math.PI*2); ctx.fill();
-  // Hair (black bun x2 — 双丫髻)
-  ctx.fillStyle = '#1a1010';
-  ctx.beginPath(); ctx.arc(-6,-17,5,0,Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(6,-17,5,0,Math.PI*2); ctx.fill();
-  // Hair base
-  ctx.beginPath(); ctx.arc(0,-13,8,Math.PI,0); ctx.fill();
-  // Eyes (sharp/playful)
-  ctx.fillStyle = '#1a0800';
-  ctx.beginPath(); ctx.arc(-3.5,-8,2.5,0,Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(3.5,-8,2.5,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#ff6040';
-  ctx.beginPath(); ctx.arc(-3.5,-8,1,0,Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(3.5,-8,1,0,Math.PI*2); ctx.fill();
-  // Smirk
-  ctx.strokeStyle = '#c08060'; ctx.lineWidth = 1.2;
-  ctx.beginPath(); ctx.moveTo(-3,-4); ctx.quadraticCurveTo(1,-2,4,-5); ctx.stroke();
-  // Gold forehead jewel
-  ctx.fillStyle = '#f0c000';
-  ctx.beginPath(); ctx.arc(0,-13,2.5,0,Math.PI*2); ctx.fill();
-  ctx.restore();
+function drawWuxian(cx,cy){
+  r(cx-3,cy-15,6,5,'#e0d0b0');
+  r(cx-10,cy-35,20,20,'#e0d0b0');r(cx-9,cy-36,18,21,'#e0d0b0');
+  r(cx-10,cy-35,20,7,'#1e3a80');r(cx-10,cy-35,9,5,'#2a4a90');r(cx+1,cy-35,9,5,'#2a4a90');r(cx-1,cy-35,2,4,'#e0d0b0');
+  r(cx-11,cy-30,3,18,'#1e3a80');r(cx+8,cy-30,3,18,'#1e3a80');r(cx-8,cy-38,4,5,'#2a4a90');r(cx+4,cy-38,4,5,'#2a4a90');
+  r(cx-5,cy-27,5,4,'#050e1a');r(cx+1,cy-27,5,4,'#050e1a');r(cx-4,cy-27,3,3,'#1a6aaa');r(cx+2,cy-27,3,3,'#1a6aaa');
+  r(cx-5,cy-28,5,3,'#050e1a');r(cx+1,cy-28,5,3,'#050e1a');r(cx-4,cy-28,2,1,'#ccddf0');r(cx+2,cy-28,2,1,'#ccddf0');
+  r(cx-2,cy-21,5,1,'#c0a888');
 }
 
-function drawLuye(x, y) {
-  ctx.save(); ctx.translate(x, y);
-  // Body (green)
-  ctx.fillStyle = '#1a6830'; ctx.beginPath(); ctx.arc(0, 4, 11, 0, Math.PI*2); ctx.fill();
-  // Head
-  ctx.fillStyle = '#e8d8b0'; ctx.beginPath(); ctx.arc(0, -8, 10, 0, Math.PI*2); ctx.fill();
-  // Hair (dark brown)
-  ctx.fillStyle = '#2a1808';
-  ctx.beginPath(); ctx.arc(0,-14,8,Math.PI,0); ctx.fill();
-  // Deer antlers
-  ctx.strokeStyle = '#8a5020'; ctx.lineWidth = 2; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(-4,-16); ctx.lineTo(-7,-24); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(-7,-24); ctx.lineTo(-10,-20); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(-7,-24); ctx.lineTo(-5,-19); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(4,-16); ctx.lineTo(7,-24); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(7,-24); ctx.lineTo(10,-20); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(7,-24); ctx.lineTo(5,-19); ctx.stroke();
-  ctx.lineCap = 'butt';
-  // Eyes (calm, amber)
-  ctx.fillStyle = '#8a6020';
-  ctx.beginPath(); ctx.arc(-3.5,-8,2.2,0,Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(3.5,-8,2.2,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#1a0800';
-  ctx.beginPath(); ctx.arc(-3.5,-8,1,0,Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(3.5,-8,1,0,Math.PI*2); ctx.fill();
-  ctx.restore();
+function drawNezha(cx,cy){
+  glowC(cx,cy,22,'rgba(255,50,0,0.08)');
+  r(cx-3,cy-13,6,5,'#e8c090');
+  r(cx-10,cy-34,21,21,'#e8c090');r(cx-9,cy-35,19,22,'#e8c090');
+  r(cx-10,cy-34,21,7,'#111');r(cx-11,cy-33,3,8,'#111');r(cx+8,cy-33,3,7,'#111');
+  r(cx-9,cy-30,4,5,'#111');r(cx-4,cy-31,3,6,'#111');r(cx+1,cy-30,4,5,'#111');r(cx+5,cy-32,3,4,'#111');
+  r(cx-13,cy-42,11,11,'#111');r(cx-12,cy-43,9,12,'#111');r(cx-11,cy-44,7,13,'#181818');r(cx-12,cy-43,4,4,'rgba(255,255,255,0.15)');
+  r(cx+2,cy-42,11,11,'#111');r(cx+3,cy-43,9,12,'#111');r(cx+4,cy-44,7,13,'#181818');r(cx+3,cy-43,4,4,'rgba(255,255,255,0.15)');
+  r(cx-8,cy-26,7,9,'#050202');r(cx+1,cy-26,7,9,'#050202');r(cx-7,cy-25,6,7,'#0f0808');r(cx+2,cy-25,6,7,'#0f0808');
+  r(cx-6,cy-24,5,5,'#1a0808');r(cx+2,cy-24,5,5,'#1a0808');r(cx-5,cy-24,4,4,'#dd2200');r(cx+3,cy-24,4,4,'#dd2200');
+  r(cx-5,cy-25,2,2,'rgba(255,255,255,0.5)');r(cx+3,cy-25,2,2,'rgba(255,255,255,0.5)');
+  r(cx-1,cy-28,3,3,'#cc1800');
+  r(cx-8,cy-29,6,2,'#1a0808');r(cx+2,cy-29,6,2,'#1a0808');r(cx-7,cy-28,2,1,'#111');r(cx+5,cy-28,2,1,'#111');
+  r(cx-1,cy-18,2,4,'#f0ead0');r(cx+3,cy-18,2,3,'#f0ead0');
+  r(cx-4,cy-20,9,3,'#1a0808');r(cx-3,cy-19,7,2,'#1a0808');r(cx-4,cy-21,9,2,'#e8c090');r(cx-4,cy-17,9,2,'#e8c090');
+}
+
+function drawLuye(cx,cy){
+  r(cx-3,cy-15,6,5,'#d4c4a8');
+  r(cx-10,cy-36,20,21,'#d4c4a8');r(cx-9,cy-37,18,22,'#d4c4a8');
+  r(cx-11,cy-36,22,8,'#f6f6ff');r(cx-12,cy-32,4,18,'#f0f0ff');r(cx+8,cy-32,4,16,'#f0f0ff');
+  r(cx-10,cy-40,8,6,'#ffffff');r(cx+2,cy-40,7,5,'#ffffff');r(cx-3,cy-42,6,7,'#f8f8ff');
+  r(cx-6,cy-27,5,5,'#050510');r(cx+1,cy-27,5,5,'#050510');r(cx-5,cy-27,4,4,'#4488cc');r(cx+2,cy-27,4,4,'#4488cc');
+  r(cx-5,cy-28,4,2,'#050510');r(cx+2,cy-28,4,2,'#050510');r(cx-4,cy-28,2,2,'#aaccee');r(cx+3,cy-28,2,2,'#aaccee');
+  r(cx-2,cy-21,5,1,'#b0a090');
 }
 
 const AVATAR_DRAWERS = { '小黑': drawXiaohei, '无限': drawWuxian, '哪吒': drawNezha, '鹿野': drawLuye };
@@ -533,9 +638,10 @@ const AVATAR_DRAWERS = { '小黑': drawXiaohei, '无限': drawWuxian, '哪吒': 
 function drawSprites() {
   for (const name of NAMES) {
     const s = sprites[name];
-    // Smooth lerp
-    s.x += (s.tx - s.x) * 0.1;
-    s.y += (s.ty - s.y) * 0.1;
+    // Snap on room change, lerp for in-room drift
+    const dist = Math.hypot(s.tx - s.x, s.ty - s.y);
+    if (dist > 80) { s.x = s.tx; s.y = s.ty; }
+    else { s.x += (s.tx - s.x) * 0.15; s.y += (s.ty - s.y) * 0.15; }
 
     const color = CHAR_COLORS[name];
 
@@ -549,27 +655,6 @@ function drawSprites() {
     if (drawer) drawer(s.x, s.y);
 
     ctx.shadowBlur = 0;
-
-    // Name tag below
-    ctx.fillStyle = 'rgba(10,6,2,0.75)';
-    ctx.font = '9px PingFang SC, sans-serif';
-    ctx.textAlign = 'center';
-    const nw = ctx.measureText(name).width + 8;
-    roundRect(s.x - nw/2, s.y + 16, nw, 13, 3);
-    ctx.fill();
-    ctx.fillStyle = color;
-    ctx.fillText(name, s.x, s.y + 26);
-
-    // Mood tag
-    if (s.mood) {
-      ctx.fillStyle = 'rgba(10,6,2,0.75)';
-      ctx.font = '9px PingFang SC, sans-serif';
-      const mw = ctx.measureText(s.mood).width + 6;
-      roundRect(s.x - mw/2, s.y + 30, mw, 12, 3);
-      ctx.fill();
-      ctx.fillStyle = color;
-      ctx.fillText(s.mood, s.x, s.y + 40);
-    }
   }
 }
 
@@ -590,63 +675,70 @@ function wrapText(text, maxW) {
   return lines;
 }
 
-function drawBubbles() {
+function updateBubbles() {
+  const overlay = document.getElementById('bubble-overlay');
+  overlay.innerHTML = '';
   const now = Date.now();
   for (let i = bubbles.length - 1; i >= 0; i--) {
     const b = bubbles[i];
     if (now > b.expiry) { bubbles.splice(i, 1); continue; }
-
     const alpha = Math.min(1, (b.expiry - now) / 600);
-    ctx.globalAlpha = alpha;
-
-    const maxW = 150;
-    const lines = wrapText(b.text, maxW);
-    const bw = maxW + 18;
-    const bh = lines.length * 17 + 12;
     const color = CHAR_COLORS[b.name] || '#ccc';
-
-    // Clamp bubble position to canvas
-    let bx = b.sx - bw / 2;
-    let by = b.sy - 22 - bh - 6;  // 22px = top of avatar head above center
-    bx = Math.max(4, Math.min(CANVAS_W - bw - 4, bx));
-    by = Math.max(4, by);
-
-    // Background
-    ctx.fillStyle = 'rgba(18,12,4,0.92)';
-    roundRect(bx, by, bw, bh, 6);
-    ctx.fill();
-
-    // Border
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
-    roundRect(bx, by, bw, bh, 6);
-    ctx.stroke();
-
-    // Tail
-    const tailX = Math.max(bx + 10, Math.min(bx + bw - 10, b.sx));
-    ctx.beginPath();
-    ctx.moveTo(tailX - 5, by + bh);
-    ctx.lineTo(tailX, by + bh + 8);
-    ctx.lineTo(tailX + 5, by + bh);
-    ctx.fillStyle = 'rgba(18,12,4,0.92)';
-    ctx.fill();
-
-    // Text
-    ctx.fillStyle = '#e8d090';
-    ctx.font = '12px PingFang SC, sans-serif';
-    ctx.textAlign = 'left';
-    lines.forEach((ln, i) => ctx.fillText(ln, bx + 9, by + 15 + i * 17));
-
-    ctx.globalAlpha = 1;
+    const div = document.createElement('div');
+    div.className = 'html-bubble';
+    div.style.left = Math.round(b.sx * currentScale) + 'px';
+    div.style.top = Math.round((b.sy - 44) * currentScale) + 'px';
+    div.style.borderColor = color;
+    div.style.opacity = alpha;
+    div.innerHTML = `<div class="bubble-text">${b.text}</div><div class="bubble-tail" style="border-top-color:rgba(18,12,4,0.92)"></div>`;
+    overlay.appendChild(div);
   }
 }
+
+// ─── HTML label overlay ───────────────────────────────────────────────────────
+const labelEls = {};
+function initLabels() {
+  const overlay = document.getElementById('label-overlay');
+  for (const name of NAMES) {
+    const color = CHAR_COLORS[name];
+    const wrap = document.createElement('div');
+    wrap.className = 'char-label';
+    const nameEl = document.createElement('div');
+    nameEl.className = 'char-name';
+    nameEl.textContent = name;
+    nameEl.style.color = color;
+    const moodEl = document.createElement('div');
+    moodEl.className = 'char-mood';
+    moodEl.style.color = color;
+    moodEl.style.display = 'none';
+    wrap.appendChild(nameEl);
+    wrap.appendChild(moodEl);
+    overlay.appendChild(wrap);
+    labelEls[name] = { wrap, mood: moodEl, _mood: '' };
+  }
+}
+function updateLabels() {
+  for (const name of NAMES) {
+    const s = sprites[name];
+    const el = labelEls[name];
+    el.wrap.style.left = Math.round(s.x * currentScale) + 'px';
+    el.wrap.style.top = Math.round((s.y + 6) * currentScale) + 'px';
+    if (s.mood !== el._mood) {
+      el._mood = s.mood;
+      el.mood.textContent = s.mood || '';
+      el.mood.style.display = s.mood ? '' : 'none';
+    }
+  }
+}
+initLabels();
 
 // ─── Render loop ──────────────────────────────────────────────────────────────
 function render() {
   ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
   drawFloorplan();
   drawSprites();
-  drawBubbles();
+  updateLabels();
+  updateBubbles();
   requestAnimationFrame(render);
 }
 render();
@@ -694,13 +786,13 @@ function handle(ev) {
       const s = sprites[name];
       if (!s) break;
 
-      // Move sprite target to new room center + offset
+      // Move sprite target to new room, then rebalance all chars in that room
       if (room && ROOMS[room]) {
-        const r = ROOMS[room];
-        const off = roomOffset(name);
-        s.tx = r.cx + off.x;
-        s.ty = r.cy + off.y;
+        const prevRoom = s.room;
         s.room = room;
+        s.tx = ROOMS[room].cx; s.ty = ROOMS[room].cy;
+        rebalanceRoom(room);
+        if (prevRoom && prevRoom !== room) rebalanceRoom(prevRoom);
       }
       if (mood) s.mood = mood;
 
@@ -730,16 +822,17 @@ function handle(ev) {
         }
       }
       if (ev.positions) {
+        const movedRooms = new Set();
         for (const [name, room] of Object.entries(ev.positions)) {
           const s = sprites[name];
           if (s && ROOMS[room]) {
-            const r = ROOMS[room];
-            const off = roomOffset(name);
-            s.tx = r.cx + off.x;
-            s.ty = r.cy + off.y;
+            if (s.room && s.room !== room) movedRooms.add(s.room);
             s.room = room;
+            s.tx = ROOMS[room].cx; s.ty = ROOMS[room].cy;
+            movedRooms.add(room);
           }
         }
+        movedRooms.forEach(rebalanceRoom);
       }
       break;
 
@@ -801,6 +894,22 @@ function handle(ev) {
       statusEl.textContent = `模拟结束`;
       addLog(`<span class="log-system">—— 除夕夜结束 ${ev.sim_time} ——</span>`);
       break;
+    case 'event_queued':
+      addLog(`<span class="log-system">⚡ 事件已注入：${ev.description}</span>`);
+      break;
+    case 'news_fetching':
+      addLog(`<span class="log-system">正在获取今日新闻...</span>`);
+      break;
+    case 'news_injected':
+      btnNews.textContent = '今日新闻';
+      btnNews.classList.remove('loading');
+      addLog(`<span class="log-system">★ 新闻事件已注入：${ev.events.join(' / ')}</span>`);
+      break;
+    case 'news_error':
+      btnNews.textContent = '今日新闻';
+      btnNews.classList.remove('loading');
+      addLog(`<span class="log-system" style="color:#c04040">新闻获取失败：${ev.error}</span>`);
+      break;
   }
 }
 
@@ -818,6 +927,28 @@ btnPause.addEventListener('click', () => {
   activeWs.send(JSON.stringify({ type: _paused ? 'pause' : 'resume' }));
   btnPause.textContent = _paused ? '继续' : '暂停';
   btnPause.style.background = _paused ? '#7a3030' : '';
+});
+
+// ── 用户注入事件 ──────────────────────────────────────────────────────────────
+const injectInput = document.getElementById('inject-input');
+const btnInject = document.getElementById('btn-inject');
+
+function doInject() {
+  const desc = injectInput.value.trim();
+  if (!desc || !activeWs || activeWs.readyState !== WebSocket.OPEN) return;
+  activeWs.send(JSON.stringify({ type: 'inject_event', description: desc }));
+  injectInput.value = '';
+}
+btnInject.addEventListener('click', doInject);
+injectInput.addEventListener('keydown', e => { if (e.key === 'Enter') doInject(); });
+
+// ── 今日新闻按钮 ──────────────────────────────────────────────────────────────
+const btnNews = document.getElementById('btn-news');
+btnNews.addEventListener('click', () => {
+  if (!activeWs || activeWs.readyState !== WebSocket.OPEN) return;
+  btnNews.textContent = '获取中...';
+  btnNews.classList.add('loading');
+  activeWs.send(JSON.stringify({ type: 'fetch_news' }));
 });
 
 connect();

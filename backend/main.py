@@ -48,7 +48,7 @@ async def lifespan(app: FastAPI):
     world = WorldState(CHARACTERS)
     scheduler = TickScheduler(agents, world, broadcast)
     scheduler_task = asyncio.create_task(scheduler.run())
-    logger.info("Simulation started — 60 ticks until 23:00")
+    logger.info("Simulation started — 19:00 to 24:00")
     yield
     if scheduler_task and not scheduler_task.done():
         scheduler_task.cancel()
@@ -94,6 +94,40 @@ async def websocket_endpoint(websocket: WebSocket):
                     scheduler.resume()
                     logger.info("Simulation resumed")
                     await websocket.send_text(json.dumps({"type": "resumed"}, ensure_ascii=False))
+                elif msg.get("type") == "inject_event" and scheduler:
+                    desc = (msg.get("description") or "").strip()
+                    if desc:
+                        event = {
+                            "description": desc,
+                            "memory": desc,
+                            "importance": msg.get("importance", 7),
+                            "fire_at": "immediate",
+                            "trigger_speaker": msg.get("trigger_speaker", ""),
+                        }
+                        scheduler.world.pending_events.append(event)
+                        logger.info(f"用户注入事件：{desc}")
+                        await websocket.send_text(json.dumps(
+                            {"type": "event_queued", "description": desc}, ensure_ascii=False
+                        ))
+                elif msg.get("type") == "fetch_news" and scheduler:
+                    logger.info("获取今日新闻事件...")
+                    await websocket.send_text(json.dumps({"type": "news_fetching"}, ensure_ascii=False))
+                    try:
+                        from backend.news import fetch_headlines, translate_to_apartment_events
+                        headlines = await fetch_headlines()
+                        events = await translate_to_apartment_events(headlines)
+                        for event in events:
+                            scheduler.world.pending_events.append(event)
+                        logger.info(f"新闻事件已注入：{[e.get('description') for e in events]}")
+                        await websocket.send_text(json.dumps({
+                            "type": "news_injected",
+                            "events": [e.get("description", "") for e in events],
+                        }, ensure_ascii=False))
+                    except Exception as e:
+                        logger.error(f"新闻获取失败: {e}")
+                        await websocket.send_text(json.dumps(
+                            {"type": "news_error", "error": str(e)}, ensure_ascii=False
+                        ))
             except Exception:
                 pass
     except WebSocketDisconnect:

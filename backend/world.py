@@ -9,6 +9,31 @@ from backend.pathfinding import find_path
 
 logger = logging.getLogger(__name__)
 
+# ── 时段基准位置表 ─────────────────────────────────────────────────────────────
+# 每个时段定义每个角色"应在"的房间。
+# 若角色连续 3 tick 偏离基准，run() 会自动将其拉回。
+POSITION_SCHEDULE: list[tuple[tuple[str, str], dict[str, str]]] = [
+    (("19:00", "20:30"), {"无限": "餐厅", "小黑": "餐厅", "哪吒": "餐厅", "鹿野": "餐厅"}),
+    (("20:30", "23:00"), {"无限": "客厅", "小黑": "客厅", "哪吒": "客厅", "鹿野": "次阳台"}),
+    (("23:00", "24:00"), {"无限": "客厅", "小黑": "客厅", "哪吒": "客厅", "鹿野": "客厅"}),
+]
+
+
+def get_schedule_room(name: str, sim_time: str) -> str | None:
+    """返回该角色在当前时段的基准位置，无匹配返回 None。"""
+    try:
+        h, m = map(int, sim_time.split(":"))
+    except ValueError:
+        return None
+    total = h * 60 + m
+    for (start, end), rooms in POSITION_SCHEDULE:
+        sh, sm = map(int, start.split(":"))
+        eh, em = map(int, end.split(":"))
+        if sh * 60 + sm <= total < eh * 60 + em:
+            return rooms.get(name)
+    return None
+
+
 # ── 每个房间里可交互道具的初始状态 ────────────────────────────────────────────
 # 格式：{ 房间名: { 道具名: 当前状态 } }
 # 角色每次 tick 可以改变这里的状态，下一轮 prompt 会把最新状态告诉所有角色
@@ -48,6 +73,24 @@ NARRATIVE_EVENTS: list[dict] = [
         "gather_room": None,
         "importance": 6,
     },
+    {
+        "sim_time": "23:50",
+        "memory": "距零点还有十分钟。电视里倒计时已经开始，院子里鞭炮零星作响。",
+        "description": "距零点十分钟，倒计时开始。",
+        "gather_room": None,
+        "importance": 8,
+        "trigger_speaker": "哪吒",
+        "trigger_prompt": "再过十分钟就零点了，你想做点什么来迎接新年——点鞭炮、倒酒、或者说句什么都行，但这个时刻你不想就这么沉默地过去。",
+    },
+    {
+        "sim_time": "00:00",
+        "memory": "零点。窗外烟花齐放，震耳欲聋，整座城市亮了。新年到了。",
+        "description": "零点，新年到了。",
+        "gather_room": "院子",
+        "importance": 10,
+        "trigger_speaker": "无限",
+        "trigger_prompt": "新年零点，烟花把院子照得通亮。你看着眼前这几个人——小黑、哪吒、鹿野——说一句新年的话，不用多，一句就够。",
+    },
 ]
 
 
@@ -71,7 +114,7 @@ class SimClock:
     def __init__(self, start_hour: int = 18, start_minute: int = 0):
         # 用"总分钟数"内部存储，方便计算
         self._total_minutes = start_hour * 60 + start_minute
-        self._end_minutes = 23 * 60  # 23:00 为模拟结束时间
+        self._end_minutes = 24 * 60  # 24:00（零点）为模拟结束时间
 
     @property
     def current(self) -> str:
@@ -110,6 +153,8 @@ class WorldState:
         self.recent_event: str = ""
         # 滚动对话窗口：最近 8 条发言（跨 tick 保留），格式 (说话者, 台词, 房间)
         self.recent_dialogue: list[tuple[str, str, str]] = []
+        # 动态事件队列：用户注入或新闻映射的事件，fire_at="immediate" 表示下一 tick 触发
+        self.pending_events: list[dict] = []
 
     def get_room_occupants(self) -> dict[str, list[str]]:
         """返回每个房间里当前有哪些角色"""
@@ -159,8 +204,14 @@ class WorldState:
     def build_world_context(self, sim_time: str) -> dict[str, Any]:
         """
         组装每次 tick 传给所有 Agent 的共享上下文。
-        包含：当前时间、房间占用情况、世界摘要、道具状态、最近对话。
+        包含：当前时间、房间占用情况、世界摘要、道具状态、最近对话、时段建议位置。
         """
+        # 为每个角色查询当前时段的基准房间，注入 prompt 引导 LLM
+        schedule_hints: dict[str, str] = {}
+        for name in self.agent_rooms:
+            hint = get_schedule_room(name, sim_time)
+            if hint:
+                schedule_hints[name] = hint
         return {
             "sim_time": sim_time,
             "room_occupants": self.get_room_occupants(),
@@ -168,6 +219,7 @@ class WorldState:
             "object_states": self.object_states,
             "recent_event": self.recent_event,
             "recent_dialogue": list(self.recent_dialogue),
+            "schedule_hints": schedule_hints,
         }
 
     def apply_decision(self, name: str, decision: dict[str, Any]) -> list[str]:
@@ -193,15 +245,13 @@ class WorldState:
             if result:
                 logger.info(f"{name} 改变了道具状态：{result[0]} → {result[1]}")
 
-        # 寻路：每次只移动一个房间（不允许瞬移）
+        # 寻路：直接移动到目标房间，保持对话和位置一致
         current = self.agent_rooms[name]
         path = find_path(current, target)
         if len(path) > 1:
-            # 移动到路径中的下一个房间
-            self.agent_rooms[name] = path[1]
+            self.agent_rooms[name] = path[-1]
             self.agent_paths[name] = path
         else:
-            # 已在目标房间，原地活动
             self.agent_paths[name] = [current]
         return path
 
@@ -222,7 +272,7 @@ class TickScheduler:
         self.agents = agents
         self.world = world
         self.broadcast = broadcast          # WebSocket 广播函数
-        self.clock = SimClock(start_hour=18, start_minute=55)
+        self.clock = SimClock(start_hour=19, start_minute=0)
         self._running = False
         self._force_tick = asyncio.Event()  # 前端点"快进"按钮时 set，跳过当前 sleep
         self._agent_map: dict[str, Agent] = {a.name: a for a in agents}
@@ -230,6 +280,11 @@ class TickScheduler:
         self._event_clear_tick: int = 0     # 清除 recent_event 的 tick 编号
         self._paused = False                # 暂停标志
         self._resume_event = asyncio.Event()
+        # 自动新闻注入状态
+        self._last_news_tick = 0            # 上次拉新闻的 tick
+        self._last_medium_tick = -99        # 上次注入中事件的 tick
+        self._last_large_tick = -999        # 上次注入大事件的 tick
+        self._large_event_count = 0         # 今晚已注入大事件数量
         self._resume_event.set()            # 默认运行中
 
     async def run_planning_phase(self) -> None:
@@ -257,96 +312,347 @@ class TickScheduler:
                 })
 
     async def _check_narrative_events(self, sim_time: str, tick_num: int) -> None:
-        """检查当前仿真时间是否触发叙事事件，若触发则注入记忆并可选强制聚集。"""
+        """检查当前仿真时间是否触发静态叙事事件（NARRATIVE_EVENTS 表），每个时间点只触发一次。"""
         for event in NARRATIVE_EVENTS:
             if event["sim_time"] != sim_time or sim_time in self._fired_events:
                 continue
             self._fired_events.add(sim_time)
-            logger.info(f"叙事事件触发 [{sim_time}]：{event['description']}")
+            await self._fire_event(event, sim_time, tick_num)
 
-            # 注入记忆：优先使用 character_memories（每人独立），否则用通用 memory
-            char_mems: dict[str, str] = event.get("character_memories", {})
+    async def _fire_event_trigger(
+        self,
+        event: dict,
+        sim_time: str,
+        tick_num: int,
+    ) -> None:
+        """
+        如果事件含 trigger_speaker，让该角色第一个开口，
+        然后跑一轮顺序对话。
+        供 _check_narrative_events 和 _check_pending_events 共用。
+        """
+        trigger_name: str = event.get("trigger_speaker", "")
+        if not trigger_name:
+            return
+        trigger_agent = self._agent_map.get(trigger_name)
+        if not trigger_agent:
+            return
+
+        # 如果没有提供 trigger_prompt，自动从 memory 生成
+        trigger_prompt: str = event.get(
+            "trigger_prompt",
+            f"刚刚发生了：{event.get('memory', '')}你是第一个注意到的，忍不住开口说了什么。",
+        )
+
+        logger.info(f"强制触发 {trigger_name} 就事件发言...")
+        reaction = await trigger_agent.react_to_dialogue(
+            speaker="环境",
+            dialogue=trigger_prompt,
+            sim_time=sim_time,
+            target=trigger_name,
+            recent_event=event.get("memory", ""),
+        )
+        if not (reaction and reaction.get("回应")):
+            return
+
+        line = reaction["回应"]
+        mood = reaction.get("情绪", trigger_agent.mood)
+        action = reaction.get("动作", "")
+        room = trigger_agent.current_room
+
+        if mood:
+            trigger_agent.mood = mood
+            self.world.agent_moods[trigger_name] = mood
+
+        ev = f"{trigger_name}说：「{line}」"
+        for other in self.agents:
+            if other.current_room == room:
+                other.add_memory(ev, importance=8, sim_time=sim_time, tick_num=tick_num)
+        self.world.push_dialogue(trigger_name, line, room)
+
+        logger.info(f"{trigger_name} 开口：{line}")
+        await self.broadcast({
+            "type": "agent_action",
+            "name": trigger_name,
+            "color": trigger_agent.color,
+            "room": room,
+            "path": [room],
+            "action": action,
+            "dialogue": line,
+            "dialogue_target": "所有人",
+            "mood": mood,
+            "thought": "",
+            "obj_interaction": "",
+        })
+
+        h, m = map(int, sim_time.split(":"))
+        await self._run_sequential_conversation(
+            room=room,
+            initiator=trigger_name,
+            opening_line=line,
+            base_sim_seconds=h * 3600 + m * 60,
+            initial_target="所有人",
+            tick_num=tick_num,
+        )
+
+    async def _fire_event(self, event: dict, sim_time: str, tick_num: int) -> None:
+        """
+        触发单个事件：注入所有角色记忆、可选强制聚集、设置 recent_event、广播、触发发言。
+        """
+        description = event.get("description", "")
+        memory_text = event.get("memory", description)
+        importance = event.get("importance", 7)
+
+        logger.info(f"事件触发：{description}")
+
+        # 注入记忆（支持 character_memories 个性化版本）
+        char_mems: dict[str, str] = event.get("character_memories", {})
+        for agent in self.agents:
+            agent.add_memory(
+                char_mems.get(agent.name, memory_text),
+                importance=importance,
+                sim_time=sim_time,
+                tick_num=tick_num,
+            )
+
+        # 可选强制聚集
+        if event.get("gather_room"):
+            room = event["gather_room"]
             for agent in self.agents:
-                mem_text = char_mems.get(agent.name, event["memory"])
-                agent.add_memory(
-                    mem_text,
-                    importance=event["importance"],
-                    sim_time=sim_time,
-                    tick_num=tick_num,
-                )
+                self.world.update_agent_room(agent.name, room)
+                agent.current_room = room
+            logger.info(f"所有角色强制移动到 {room}")
 
-            # 可选：强制聚集到指定房间
-            if event.get("gather_room"):
-                room = event["gather_room"]
-                for agent in self.agents:
-                    self.world.update_agent_room(agent.name, room)
-                    agent.current_room = room
-                logger.info(f"所有角色强制移动到 {room}")
+        # 设置 recent_event（4 tick ≈ 20 分钟）
+        self.world.recent_event = memory_text
+        self._event_clear_tick = tick_num + 4
 
-            # 设置 recent_event（保留 4 个 tick ≈ 20 分钟模拟时间）
-            self.world.recent_event = event["memory"]
-            self._event_clear_tick = tick_num + 4
+        await self.broadcast({
+            "type": "narrative_event",
+            "sim_time": sim_time,
+            "description": description,
+            "gather_room": event.get("gather_room"),
+        })
 
-            # 广播给前端
-            await self.broadcast({
-                "type": "narrative_event",
-                "sim_time": sim_time,
-                "description": event["description"],
-                "gather_room": event.get("gather_room"),
+        # 静态叙事事件立即触发发言；即时注入的动态事件（news/用户）跳过，
+        # 让 recent_event 在下一 tick 的 think() 里自然触发反应，避免 tick 卡顿
+        if not event.get("fire_at") == "immediate":
+            await self._fire_event_trigger(event, sim_time, tick_num)
+
+    async def _ambient_event_inject(self, tick_num: int, sim_time: str) -> bool:
+        """
+        基于当前场景状态生成环境触发事件，不依赖新闻 API。
+        每 4 tick（20分钟）检查一次，随机选取一个符合条件的触发。
+        返回 True 表示成功注入了一个事件。
+        """
+        import random
+
+        AMBIENT_INTERVAL = 4
+        if tick_num - getattr(self, '_last_ambient_tick', -99) < AMBIENT_INTERVAL:
+            return False
+
+        h, m = map(int, sim_time.split(":"))
+        total_min = h * 60 + m
+        occupants = self.world.get_room_occupants()
+        obj = self.world.object_states
+
+        candidates = []
+
+        # ── 基于房间状态的触发 ─────────────────────────────────────────────────
+
+        # 厨房：锅里有菜，飘出香味
+        if obj.get("厨房", {}).get("红烧肉") not in ("未开始炖", None):
+            if "厨房" in occupants or "餐厅" in occupants:
+                candidates.append({
+                    "description": "厨房飘出红烧肉的香味。",
+                    "memory": "空气里隐约飘来红烧肉的香气，有些暖。",
+                    "importance": 4,
+                    "trigger_speaker": next(iter(occupants.get("餐厅", occupants.get("厨房", []))[:1]), None),
+                    "trigger_prompt": "厨房里红烧肉的味道飘过来，你注意到了，随口说了一句。",
+                })
+
+        # 客厅：PS5 还在运行，有人路过
+        if obj.get("客厅", {}).get("PS5", "").startswith("运行"):
+            rooms_with_chars = [r for r in ("游戏室", "餐厅", "次阳台") if r in occupants]
+            if rooms_with_chars:
+                candidates.append({
+                    "description": "客厅里游戏的音效从门缝里传出来。",
+                    "memory": "隐约听见客厅那边游戏的音效，节奏很快。",
+                    "importance": 3,
+                })
+
+        # 院子：鞭炮未点燃但到了晚些时候
+        if total_min >= 22 * 60 and obj.get("院子", {}).get("鞭炮") == "未点燃":
+            yard_chars = occupants.get("院子", []) + occupants.get("客厅", [])
+            if yard_chars:
+                candidates.append({
+                    "description": "院子里的鞭炮还没点，哪吒盯着它看了一眼。",
+                    "memory": "院子里那盘鞭炮安静地摆着，还没人去碰。",
+                    "importance": 5,
+                    "trigger_speaker": "哪吒" if "哪吒" in yard_chars else yard_chars[0],
+                    "trigger_prompt": "院子里鞭炮还摆着没点，都快零点了，你忍不住发表了个意见。",
+                })
+
+        # ── 基于时间的触发 ─────────────────────────────────────────────────────
+
+        # 除夕晚上8点：街上行人散尽的安静
+        if 20 * 60 <= total_min < 20 * 60 + 10:
+            candidates.append({
+                "description": "窗外街道突然安静下来，除夕的夜越来越深。",
+                "memory": "窗外的车声和人声都少了很多，整条街安静得出奇，除夕的感觉来了。",
+                "importance": 5,
             })
 
-            # 强制触发发言：让指定角色立刻对事件开口，带动其他人讨论
-            trigger_name: str = event.get("trigger_speaker", "")
-            trigger_prompt: str = event.get("trigger_prompt", "")
-            if trigger_name and trigger_prompt:
-                trigger_agent = self._agent_map.get(trigger_name)
-                if trigger_agent:
-                    logger.info(f"强制触发 {trigger_name} 就事件发言...")
-                    reaction = await trigger_agent.react_to_dialogue(
-                        speaker="内心",
-                        dialogue=trigger_prompt,
-                        sim_time=sim_time,
-                        target=trigger_name,   # 指向自己 → 必须开口
-                        recent_event=event["memory"],
-                    )
-                    if reaction and reaction.get("回应"):
-                        line = reaction["回应"]
-                        mood = reaction.get("情绪", trigger_agent.mood)
-                        action = reaction.get("动作", "")
-                        if mood:
-                            trigger_agent.mood = mood
-                            self.world.agent_moods[trigger_name] = mood
-                        # 写入同房间所有人的记忆
-                        ev = f"{trigger_name}说：「{line}」"
-                        for other in self.agents:
-                            if other.current_room == trigger_agent.current_room:
-                                other.add_memory(ev, importance=8, sim_time=sim_time, tick_num=tick_num)
-                        logger.info(f"{trigger_name} 开口：{line}")
-                        # 广播这句话
-                        await self.broadcast({
-                            "type": "agent_action",
-                            "name": trigger_name,
-                            "color": trigger_agent.color,
-                            "room": trigger_agent.current_room,
-                            "path": [trigger_agent.current_room],
-                            "action": action,
-                            "dialogue": line,
-                            "dialogue_target": "所有人",
-                            "mood": mood,
-                            "thought": "",
-                            "obj_interaction": "",
-                        })
-                        # 立刻开启顺序对话，让同房间其他人依次接话
-                        h, m = map(int, sim_time.split(":"))
-                        base_sec = h * 3600 + m * 60
-                        await self._run_sequential_conversation(
-                            room=trigger_agent.current_room,
-                            initiator=trigger_name,
-                            opening_line=line,
-                            base_sim_seconds=base_sec,
-                            initial_target="所有人",
-                            tick_num=tick_num,
-                        )
+        # 21点：对门邻居家传来喝酒划拳声
+        if 21 * 60 <= total_min < 21 * 60 + 10:
+            candidates.append({
+                "description": "走廊里隐约传来对门邻居划拳喝酒的声音。",
+                "memory": "走廊外传来一阵猜拳声，是对门邻居在热闹，和这边的安静形成对比。",
+                "importance": 4,
+                "trigger_speaker": "哪吒",
+                "trigger_prompt": "走廊里传来对门邻居划拳喝酒的声音，你听了一会儿，说了句什么。",
+            })
+
+        # 22点：窗外开始有零星爆竹声
+        if 22 * 60 <= total_min < 22 * 60 + 10:
+            candidates.append({
+                "description": "远处零星爆竹声开始响起，还有一个小时到零点。",
+                "memory": "远处有人等不及了，零星的爆竹声先响起来，还早，但已经有年的味道了。",
+                "importance": 5,
+            })
+
+        # 22:30：小黑打哈欠，无限注意到
+        if 22 * 60 + 30 <= total_min < 22 * 60 + 40:
+            if "小黑" in self.world.agent_rooms and "无限" in self.world.agent_rooms:
+                if self.world.agent_rooms["小黑"] == self.world.agent_rooms["无限"]:
+                    candidates.append({
+                        "description": "小黑打了个哈欠，无限注意到了。",
+                        "memory": "小黑打了个哈欠——都快十点半了，他还没睡，还硬撑着。",
+                        "importance": 4,
+                        "trigger_speaker": "无限",
+                        "trigger_prompt": "小黑打了个哈欠，你注意到了，关心地说了句话。",
+                    })
+
+        # ── 基于角色互动的触发 ─────────────────────────────────────────────────
+
+        # 鹿野独自在次阳台超过一段时间
+        luye_room = self.world.agent_rooms.get("鹿野", "")
+        if luye_room == "次阳台":
+            room_others = [n for n in occupants.get("次阳台", []) if n != "鹿野"]
+            if not room_others:  # 鹿野独自在阳台
+                candidates.append({
+                    "description": "鹿野一个人在次阳台，静静地看着夜景。",
+                    "memory": "鹿野在阳台上站了一会儿，没人陪，也没说话。",
+                    "importance": 4,
+                    "trigger_speaker": "鹿野",
+                    "trigger_prompt": "你一个人在阳台上看夜景，城市的灯火让你想到了什么，随口说了一句，不管有没有人听。",
+                })
+
+        # 小黑和哪吒同一个房间（两人关系有趣）
+        xiaohei_room = self.world.agent_rooms.get("小黑", "")
+        nezha_room = self.world.agent_rooms.get("哪吒", "")
+        if xiaohei_room == nezha_room and xiaohei_room:
+            candidates.append({
+                "description": f"哪吒和小黑待在同一个房间，气氛有些微妙。",
+                "memory": f"哪吒和小黑都在{xiaohei_room}，没什么事，但两个人待在一起总有点说不清的气氛。",
+                "importance": 3,
+                "trigger_speaker": "哪吒",
+                "trigger_prompt": "你和小黑待在同一个房间，闲着没事，你逗了他一下或者随口说了句什么。",
+            })
+
+        if not candidates:
+            return False
+
+        # 过滤掉没有 trigger_speaker 但文字太平淡的（importance≤3 且无 trigger_speaker 跳过）
+        good = [c for c in candidates if c.get("trigger_speaker") or c.get("importance", 0) >= 5]
+        pool = good if good else candidates
+
+        chosen = random.choice(pool)
+        # 没有 trigger_speaker 就用 fire_at immediate 静默注入
+        if not chosen.get("trigger_speaker"):
+            chosen["fire_at"] = "immediate"
+        else:
+            chosen["fire_at"] = "immediate"
+
+        self.world.pending_events.append(chosen)
+        self._last_ambient_tick = tick_num
+        logger.info(f"环境事件注入：{chosen['description']}")
+        return True
+
+    async def _auto_news_inject(self, tick_num: int) -> None:
+        """
+        每 6 tick（30分钟游戏时间）自动拉一次新闻，按重要性分级注入：
+          小事件 (importance≤5)：每次最多2个，无冷却
+          中事件 (importance 6-7)：每次最多1个，12 tick（1小时）冷却
+          大事件 (importance≥8)：每次最多1个，24 tick（2小时）冷却，整晚上限2个
+        """
+        NEWS_INTERVAL = 6           # 拉新闻间隔（tick）
+        MEDIUM_COOLDOWN = 12        # 中事件冷却（tick）
+        LARGE_COOLDOWN = 24         # 大事件冷却（tick）
+        LARGE_NIGHT_CAP = 2         # 整晚大事件上限
+
+        if tick_num - self._last_news_tick < NEWS_INTERVAL:
+            return
+        self._last_news_tick = tick_num
+
+        try:
+            from backend.news import fetch_headlines, translate_to_apartment_events
+            headlines = await fetch_headlines()
+            if not headlines:
+                return
+            events = await translate_to_apartment_events(headlines)
+        except Exception as e:
+            logger.warning(f"自动新闻拉取失败: {e}")
+            return
+
+        small, medium, large = [], [], []
+        for ev in events:
+            imp = ev.get("importance", 6)
+            if imp >= 8:
+                large.append(ev)
+            elif imp >= 6:
+                medium.append(ev)
+            else:
+                small.append(ev)
+
+        to_inject = []
+
+        # 每次只触发一个事件：优先级 大 > 中 > 小
+        if (large
+                and self._large_event_count < LARGE_NIGHT_CAP
+                and (tick_num - self._last_large_tick) >= LARGE_COOLDOWN):
+            to_inject.append(large[0])
+            self._last_large_tick = tick_num
+            self._large_event_count += 1
+        elif medium and (tick_num - self._last_medium_tick) >= MEDIUM_COOLDOWN:
+            to_inject.append(medium[0])
+            self._last_medium_tick = tick_num
+        elif small:
+            to_inject.append(small[0])
+
+        for ev in to_inject:
+            self.world.pending_events.append(ev)
+
+        if to_inject:
+            logger.info(f"自动新闻注入 {len(to_inject)} 个事件：{[e.get('description') for e in to_inject]}")
+
+    async def _check_pending_events(self, sim_time: str, tick_num: int) -> None:
+        """
+        检查动态事件队列，触发 fire_at=="immediate" 或时间匹配的事件。
+        """
+        if not self.world.pending_events:
+            return
+
+        to_fire, remaining = [], []
+        for ev in self.world.pending_events:
+            fire_at = ev.get("fire_at", "immediate")
+            if fire_at == "immediate" or fire_at == sim_time:
+                to_fire.append(ev)
+            else:
+                remaining.append(ev)
+
+        self.world.pending_events = remaining
+        for ev in to_fire:
+            await self._fire_event(ev, sim_time, tick_num)
 
     async def _run_sequential_conversation(
         self,
@@ -471,128 +777,131 @@ class TickScheduler:
 
             await self.broadcast({"type": "tick_start", "tick": tick_num, "sim_time": sim_time})
 
-            # 清除过期的叙事事件描述
-            if self._event_clear_tick and tick_num >= self._event_clear_tick:
-                self.world.recent_event = ""
+            try:
+                # 清除过期的叙事事件描述
+                if self._event_clear_tick and tick_num >= self._event_clear_tick:
+                    self.world.recent_event = ""
 
-            # 检查并触发叙事事件
-            await self._check_narrative_events(sim_time, tick_num)
+                # 检查并触发叙事事件（静态时间表）
+                await self._check_narrative_events(sim_time, tick_num)
 
-            # 构建本 tick 的共享世界上下文（所有 agent 共用同一份快照）
-            world_context = self.world.build_world_context(sim_time)
+                # 检查并触发动态事件（用户注入 / 新闻映射）
+                await self._check_pending_events(sim_time, tick_num)
 
-            # ── 主决策轮：4个角色并发调用 LLM ───────────────────────────────
-            # asyncio.gather 同时发起 4 个 HTTP 请求，谁先回来谁先处理
-            decisions = await asyncio.gather(
-                *[agent.think(world_context, tick_num) for agent in self.agents],
-                return_exceptions=True,
-            )
+                # 环境事件注入（基于场景/时间/角色位置，不依赖新闻）
+                ambient_fired = await self._ambient_event_inject(tick_num, sim_time)
 
-            # ── 应用决策，收集本 tick 事件 ────────────────────────────────────
-            # spoke_in_room：记录每个房间本 tick 谁开口说话了
-            # 规则：同一房间同一 tick 只允许一人说话（避免多人同时开口）
-            # 格式：room → (说话者, 台词, 对话对象)
-            spoke_in_room: dict[str, tuple[str, str, str]] = {}
-            tick_events = []
+                # 自动新闻注入（按等级分频率）；若环境事件刚刚触发，跳过新闻，避免同 tick 两个事件
+                if not ambient_fired:
+                    await self._auto_news_inject(tick_num)
 
-            for agent, decision in zip(self.agents, decisions):
-                if isinstance(decision, Exception):
-                    logger.error(f"{agent.name} think() 失败: {decision}")
-                    continue
+                # 构建本 tick 的共享世界上下文（所有 agent 共用同一份快照）
+                world_context = self.world.build_world_context(sim_time)
 
-                # 把决策写入世界状态（移动、心情、道具），返回寻路路径
-                path = self.world.apply_decision(agent.name, decision)
-                new_room = self.world.agent_rooms[agent.name]
+                # ── 主决策轮：4个角色并发调用 LLM ───────────────────────────────
+                decisions = await asyncio.gather(
+                    *[agent.think(world_context, tick_num) for agent in self.agents],
+                    return_exceptions=True,
+                )
 
-                dialogue = decision.get("对话", "")
-                target = decision.get("对话对象", "所有人") or "所有人"
-                # 同房间已有人说话 → 本角色本轮静默
-                if dialogue and new_room in spoke_in_room:
-                    dialogue = ""
-                elif dialogue:
-                    spoke_in_room[new_room] = (agent.name, dialogue, target)
+                # ── 应用决策，收集本 tick 事件 ────────────────────────────────────
+                spoke_in_room: dict[str, tuple[str, str, str]] = {}
+                tick_events = []
 
-                tick_events.append({
-                    "type": "agent_action",
-                    "name": agent.name,
-                    "color": agent.color,
-                    "room": new_room,
-                    "path": path,
-                    "action": decision.get("动作", ""),
-                    "dialogue": dialogue,
-                    "dialogue_target": target if dialogue else "",
-                    "mood": decision.get("情绪", ""),
-                    "thought": decision.get("思考", ""),
-                    "obj_interaction": decision.get("道具交互", ""),
+                for agent, decision in zip(self.agents, decisions):
+                    if isinstance(decision, Exception):
+                        logger.error(f"{agent.name} think() 失败: {decision}")
+                        continue
+
+                    path = self.world.apply_decision(agent.name, decision)
+                    new_room = self.world.agent_rooms[agent.name]
+
+                    dialogue = decision.get("对话", "")
+                    target = decision.get("对话对象", "所有人") or "所有人"
+                    if dialogue and new_room in spoke_in_room:
+                        dialogue = ""
+                    elif dialogue:
+                        spoke_in_room[new_room] = (agent.name, dialogue, target)
+
+                    tick_events.append({
+                        "type": "agent_action",
+                        "name": agent.name,
+                        "color": agent.color,
+                        "room": new_room,
+                        "path": path,
+                        "action": decision.get("动作", ""),
+                        "dialogue": dialogue,
+                        "dialogue_target": target if dialogue else "",
+                        "mood": decision.get("情绪", ""),
+                        "thought": decision.get("思考", ""),
+                        "obj_interaction": decision.get("道具交互", ""),
+                    })
+
+                    if decision.get("动作"):
+                        ev = f"{agent.name}在{new_room}：{decision['动作']}"
+                        for other in self.agents:
+                            if other.current_room == new_room:
+                                other.add_memory(ev, importance=5, sim_time=sim_time, tick_num=tick_num)
+                    if dialogue:
+                        to_str = f"（对{target}）" if target and target != "所有人" else ""
+                        ev = f"{agent.name}{to_str}说：「{dialogue}」"
+                        for other in self.agents:
+                            if other.current_room == new_room:
+                                other.add_memory(ev, importance=7, sim_time=sim_time, tick_num=tick_num)
+
+                    agent.current_room = new_room
+
+                for event in tick_events:
+                    await self.broadcast(event)
+
+                # ── 顺序对话：每句话消耗10秒模拟时间，各房间并发进行 ───────────────
+                conv_seconds_list: list[int] = []
+                if spoke_in_room:
+                    h, m = map(int, sim_time.split(":"))
+                    base_sec = h * 3600 + m * 60
+                    conv_results = await asyncio.gather(
+                        *[
+                            self._run_sequential_conversation(
+                                room, spk, dlg, base_sec, tgt, tick_num=tick_num
+                            )
+                            for room, (spk, dlg, tgt) in spoke_in_room.items()
+                        ],
+                        return_exceptions=True,
+                    )
+                    conv_seconds_list = [r for r in conv_results if isinstance(r, int)]
+
+                # ── 反思检查 ─────────────────────────────────────────────────
+                reflecting = [a for a in self.agents if a.should_reflect()]
+                if reflecting:
+                    reflect_results = await asyncio.gather(
+                        *[a.reflect(sim_time, tick_num) for a in reflecting],
+                        return_exceptions=True,
+                    )
+                    for agent, insights in zip(reflecting, reflect_results):
+                        if isinstance(insights, list) and insights:
+                            logger.info(f"{agent.name} 反思：{insights[0]}")
+                            await self.broadcast({
+                                "type": "agent_reflection",
+                                "name": agent.name,
+                                "insights": insights,
+                                "sim_time": sim_time,
+                            })
+
+                # ── 推进模拟时钟并广播世界快照 ───────────────────────────────────
+                max_conv_sec = max(conv_seconds_list, default=0)
+                advance_min = max(self.TICK_SIM_MINUTES, (max_conv_sec + 59) // 60)
+                self.clock.advance(advance_min)
+                await self.broadcast({
+                    "type": "world_update",
+                    "sim_time": self.clock.current,
+                    "positions": dict(self.world.agent_rooms),
+                    "moods": dict(self.world.agent_moods),
+                    "object_states": self.world.object_states,
                 })
 
-                # 把本 tick 的动作和对话写入同房间所有角色的记忆
-                if decision.get("动作"):
-                    ev = f"{agent.name}在{new_room}：{decision['动作']}"
-                    for other in self.agents:
-                        if other.current_room == new_room:
-                            other.add_memory(ev, importance=5, sim_time=sim_time, tick_num=tick_num)
-                if dialogue:
-                    to_str = f"（对{target}）" if target and target != "所有人" else ""
-                    ev = f"{agent.name}{to_str}说：「{dialogue}」"
-                    for other in self.agents:
-                        if other.current_room == new_room:
-                            other.add_memory(ev, importance=7, sim_time=sim_time, tick_num=tick_num)
-
-                # 同步 agent 内部的 current_room（用于下一轮 prompt 构建）
-                agent.current_room = new_room
-
-            # 把主决策事件广播给前端
-            for event in tick_events:
-                await self.broadcast(event)
-
-            # ── 顺序对话：每句话消耗10秒模拟时间，各房间并发进行 ───────────────
-            # 不同房间的对话同时进行（asyncio并发），同一房间内严格顺序
-            conv_seconds_list: list[int] = []
-            if spoke_in_room:
-                h, m = map(int, sim_time.split(":"))
-                base_sec = h * 3600 + m * 60
-                conv_results = await asyncio.gather(
-                    *[
-                        self._run_sequential_conversation(
-                            room, spk, dlg, base_sec, tgt, tick_num=tick_num
-                        )
-                        for room, (spk, dlg, tgt) in spoke_in_room.items()
-                    ],
-                    return_exceptions=True,
-                )
-                conv_seconds_list = [r for r in conv_results if isinstance(r, int)]
-
-            # ── 反思检查：积累了足够多的新记忆后触发反思 ─────────────────────
-            # 反思由 LLM 将近期记忆归纳为更高层的洞察，importance=9 写回记忆流
-            reflecting = [a for a in self.agents if a.should_reflect()]
-            if reflecting:
-                reflect_results = await asyncio.gather(
-                    *[a.reflect(sim_time, tick_num) for a in reflecting],
-                    return_exceptions=True,
-                )
-                for agent, insights in zip(reflecting, reflect_results):
-                    if isinstance(insights, list) and insights:
-                        logger.info(f"{agent.name} 反思：{insights[0]}")
-                        await self.broadcast({
-                            "type": "agent_reflection",
-                            "name": agent.name,
-                            "insights": insights,
-                            "sim_time": sim_time,
-                        })
-
-            # ── 推进模拟时钟并广播世界快照 ───────────────────────────────────
-            # 至少推进 TICK_SIM_MINUTES 分钟；若对话更长则按实际时长推进
-            max_conv_sec = max(conv_seconds_list, default=0)
-            advance_min = max(self.TICK_SIM_MINUTES, (max_conv_sec + 59) // 60)
-            self.clock.advance(advance_min)
-            await self.broadcast({
-                "type": "world_update",
-                "sim_time": self.clock.current,
-                "positions": dict(self.world.agent_rooms),
-                "moods": dict(self.world.agent_moods),
-                "object_states": self.world.object_states,
-            })
+            except Exception as e:
+                logger.error(f"Tick {tick_num} 异常，跳过本轮继续运行: {e}", exc_info=True)
+                self.clock.advance(self.TICK_SIM_MINUTES)
 
             # ── 等待下一个 tick ───────────────────────────────────────────────
             # 正常等待 4 秒；若前端点了"快进"按钮则立刻跳过
