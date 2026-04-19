@@ -391,6 +391,7 @@ class TickScheduler:
             opening_line=line,
             base_sim_seconds=h * 3600 + m * 60,
             initial_target="所有人",
+            max_sim_minutes=3,
             tick_num=tick_num,
         )
 
@@ -862,7 +863,7 @@ class TickScheduler:
                     conv_results = await asyncio.gather(
                         *[
                             self._run_sequential_conversation(
-                                room, spk, dlg, base_sec, tgt, tick_num=tick_num
+                                room, spk, dlg, base_sec, tgt, max_sim_minutes=3, tick_num=tick_num
                             )
                             for room, (spk, dlg, tgt) in spoke_in_room.items()
                         ],
