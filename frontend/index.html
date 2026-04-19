@@ -59,13 +59,16 @@
   }
   #canvas-wrap {
     flex-shrink: 0;
-    position: relative;
     background: #181410;
-    overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
     align-self: stretch;
+  }
+  #canvas-inner {
+    position: relative;
+    flex-shrink: 0;
+    overflow: hidden;
   }
   canvas { display: block; image-rendering: pixelated; }
   #label-overlay {
@@ -161,9 +164,11 @@
 </div>
 <div id="main">
   <div id="canvas-wrap">
-    <canvas id="canvas"></canvas>
-    <div id="label-overlay"></div>
-    <div id="bubble-overlay"></div>
+    <div id="canvas-inner">
+      <canvas id="canvas"></canvas>
+      <div id="label-overlay"></div>
+      <div id="bubble-overlay"></div>
+    </div>
   </div>
   <div style="display:flex;flex-direction:column;flex:1;min-width:260px;overflow:hidden;">
     <div id="log-panel" style="flex:1;min-width:0;"></div>
@@ -293,16 +298,19 @@ const CANVAS_H = 520;
 
 let currentScale = 1;
 function resizeCanvas() {
-  const wrap = document.getElementById('canvas-wrap');
+  const inner = document.getElementById('canvas-inner');
   const mainEl = document.getElementById('main');
   const availH = mainEl.clientHeight || (window.innerHeight - 60);
   const availW = (mainEl.clientWidth || window.innerWidth) - 280;
   currentScale = Math.min(1, availH / CANVAS_H, availW / CANVAS_W);
+  const w = Math.round(CANVAS_W * currentScale);
+  const h = Math.round(CANVAS_H * currentScale);
   canvas.width = CANVAS_W;
   canvas.height = CANVAS_H;
-  canvas.style.width = (CANVAS_W * currentScale) + 'px';
-  canvas.style.height = (CANVAS_H * currentScale) + 'px';
-  wrap.style.width = (CANVAS_W * currentScale) + 'px';
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  inner.style.width = w + 'px';
+  inner.style.height = h + 'px';
 }
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
