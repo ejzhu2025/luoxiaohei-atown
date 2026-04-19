@@ -548,16 +548,16 @@ class TickScheduler:
                     "trigger_prompt": "你一个人在阳台上看夜景，城市的灯火让你想到了什么，随口说了一句，不管有没有人听。",
                 })
 
-        # 小黑和哪吒同一个房间（两人关系有趣）
+        # 小黑和哪吒同一个房间（哪吒爱逗小黑）
         xiaohei_room = self.world.agent_rooms.get("小黑", "")
         nezha_room = self.world.agent_rooms.get("哪吒", "")
         if xiaohei_room == nezha_room and xiaohei_room:
             candidates.append({
-                "description": f"哪吒和小黑待在同一个房间，气氛有些微妙。",
-                "memory": f"哪吒和小黑都在{xiaohei_room}，没什么事，但两个人待在一起总有点说不清的气氛。",
+                "description": f"哪吒和小黑待在同一个房间，哪吒忍不住想逗逗他。",
+                "memory": f"哪吒和小黑都在{xiaohei_room}，哪吒闲不住，总想找小黑说点什么。",
                 "importance": 3,
                 "trigger_speaker": "哪吒",
-                "trigger_prompt": "你和小黑待在同一个房间，闲着没事，你逗了他一下或者随口说了句什么。",
+                "trigger_prompt": "你和小黑待在同一个房间，你觉得他挺有意思的，随口逗了他一句，语气轻松，不是挑衅。",
             })
 
         if not candidates:
