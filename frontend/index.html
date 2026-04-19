@@ -160,6 +160,7 @@
   <button id="btn-tick" title="跳过等待，立刻进入下一个tick">快进</button>
   <button id="btn-pause" title="暂停/恢复时间轴">暂停</button>
   <button id="btn-news" title="抓取今日新闻并映射为公寓事件">今日新闻</button>
+  <button id="btn-export" title="导出完整对话日志">导出日志</button>
   <div id="status">连接中...</div>
 </div>
 <div id="main">
@@ -775,7 +776,7 @@ function addLog(html) {
   div.className = 'log-entry';
   div.innerHTML = html;
   logPanel.prepend(div);
-  while (logPanel.children.length > 300) logPanel.removeChild(logPanel.lastChild);
+  while (logPanel.children.length > 2000) logPanel.removeChild(logPanel.lastChild);
 }
 
 // ─── WebSocket ────────────────────────────────────────────────────────────────
@@ -972,6 +973,16 @@ btnNews.addEventListener('click', () => {
   btnNews.textContent = '获取中...';
   btnNews.classList.add('loading');
   activeWs.send(JSON.stringify({ type: 'fetch_news' }));
+});
+
+document.getElementById('btn-export').addEventListener('click', () => {
+  const entries = Array.from(logPanel.children).reverse(); // oldest first
+  const lines = entries.map(el => el.innerText.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `luoxiaohei_log_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.txt`;
+  a.click();
 });
 
 connect();
