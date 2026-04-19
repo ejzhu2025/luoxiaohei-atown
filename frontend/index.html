@@ -62,6 +62,10 @@
     position: relative;
     background: #181410;
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: stretch;
   }
   canvas { display: block; image-rendering: pixelated; }
   #label-overlay {
@@ -290,8 +294,10 @@ const CANVAS_H = 520;
 let currentScale = 1;
 function resizeCanvas() {
   const wrap = document.getElementById('canvas-wrap');
-  const avail = Math.min(window.innerHeight - 40, window.innerWidth - 260);
-  currentScale = Math.min(1, avail / CANVAS_H);
+  const mainEl = document.getElementById('main');
+  const availH = mainEl.clientHeight || (window.innerHeight - 60);
+  const availW = (mainEl.clientWidth || window.innerWidth) - 280;
+  currentScale = Math.min(1, availH / CANVAS_H, availW / CANVAS_W);
   canvas.width = CANVAS_W;
   canvas.height = CANVAS_H;
   canvas.style.width = (CANVAS_W * currentScale) + 'px';
@@ -847,10 +853,11 @@ function handle(ev) {
     case 'agent_reaction': {
       const { name, dialogue, action, mood, in_reply_to } = ev;
       const s = sprites[name];
-      if (!s) break;
-      if (mood) s.mood = mood;
-      if (dialogue && dialogue.trim()) {
-        bubbles.push({ name, text: dialogue, sx: s.x, sy: s.y, expiry: Date.now() + BUBBLE_DURATION });
+      if (s) {
+        if (mood) s.mood = mood;
+        if (dialogue && dialogue.trim()) {
+          bubbles.push({ name, text: dialogue, sx: s.x, sy: s.y, expiry: Date.now() + BUBBLE_DURATION });
+        }
       }
       const color = CHAR_COLORS[name] || '#aaa';
       addLog(
