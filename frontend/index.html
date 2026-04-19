@@ -687,10 +687,18 @@ function updateBubbles() {
     const div = document.createElement('div');
     div.className = 'html-bubble';
     div.style.left = Math.round(b.sx * currentScale) + 'px';
-    div.style.top = Math.round((b.sy - 44) * currentScale) + 'px';
     div.style.borderColor = color;
     div.style.opacity = alpha;
-    div.innerHTML = `<div class="bubble-text">${b.text}</div><div class="bubble-tail" style="border-top-color:rgba(18,12,4,0.92)"></div>`;
+    const rawTop = Math.round((b.sy - 44) * currentScale);
+    if (rawTop < 80) {
+      // 角色靠近顶部：气泡改到角色下方，箭头向上
+      div.style.top = Math.round((b.sy + 24) * currentScale) + 'px';
+      div.style.transform = 'translate(-50%, 0)';
+      div.innerHTML = `<div class="bubble-tail" style="top:-8px;bottom:auto;border-top:none;border-bottom:8px solid rgba(18,12,4,0.92);border-left:6px solid transparent;border-right:6px solid transparent;position:absolute;left:50%;transform:translateX(-50%)"></div><div class="bubble-text">${b.text}</div>`;
+    } else {
+      div.style.top = rawTop + 'px';
+      div.innerHTML = `<div class="bubble-text">${b.text}</div><div class="bubble-tail" style="border-top-color:rgba(18,12,4,0.92)"></div>`;
+    }
     overlay.appendChild(div);
   }
 }
