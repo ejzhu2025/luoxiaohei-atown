@@ -712,6 +712,7 @@ class TickScheduler:
             )
 
             next_agent = None
+            next_reaction = None
             next_response = next_action = next_mood = ""
             for agent, reaction in zip(candidates, reactions):
                 if isinstance(reaction, Exception) or not reaction:
@@ -719,6 +720,7 @@ class TickScheduler:
                 resp = reaction.get("回应", "")
                 if resp:
                     next_agent = agent
+                    next_reaction = reaction
                     next_response = resp
                     next_action = reaction.get("动作", "")
                     next_mood = reaction.get("情绪", agent.mood)
@@ -731,6 +733,26 @@ class TickScheduler:
                 next_agent.mood = next_mood
                 self.world.agent_moods[next_agent.name] = next_mood
 
+            # 应用移动（如果角色决定离开）
+            valid_rooms = {"院子","厨房","餐厅","游戏室","衣帽间","客厅","次阳台","卧室","卫生间"}
+            target_room = next_reaction.get("目标房间", "") if isinstance(next_reaction, dict) else ""
+            if target_room and target_room in valid_rooms and target_room != next_agent.current_room:
+                path = self.world.apply_decision(next_agent.name, {"目标房间": target_room})
+                next_agent.current_room = self.world.agent_rooms[next_agent.name]
+                await self.broadcast({
+                    "type": "agent_action",
+                    "name": next_agent.name,
+                    "color": next_agent.color,
+                    "room": next_agent.current_room,
+                    "path": path,
+                    "action": next_action,
+                    "dialogue": "",
+                    "dialogue_target": "",
+                    "mood": next_mood,
+                    "thought": "",
+                    "obj_interaction": "",
+                })
+
             ev = f"{next_agent.name}说：「{next_response}」"
             for other in self.agents:
                 if other.current_room == room:
@@ -741,7 +763,7 @@ class TickScheduler:
                 "type": "agent_reaction",
                 "name": next_agent.name,
                 "color": next_agent.color,
-                "room": room,
+                "room": next_agent.current_room,
                 "dialogue": next_response,
                 "action": next_action,
                 "mood": next_mood,
